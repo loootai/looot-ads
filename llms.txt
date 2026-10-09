@@ -1,0 +1,25 @@
+# looot-ads
+
+> Open-source competitor ad board. Input: competitor domains or names. It pulls their ads from the Meta, Google, LinkedIn and TikTok ad libraries through looot and writes ads.json, ads.csv and brief.md, with the price shown before any call and a hard spend cap.
+
+## Run it
+
+- Install: `npm install --ignore-scripts` (pin-guard or your own scan first)
+- Price only, no call: `npm run ads -- --competitors "acme.com,Globex" --dry-run`
+- Real pull: `LOOOT_TOKEN=... npm run ads -- --competitors "acme.com,Globex" --max-spend 0.50 --out out`
+- Look around with invented data: `npm run demo` (web UI on port 3220) or `npm run ads -- --demo`
+
+## Files
+
+- README.md: what it does, price, signals table, what is not tested
+- src/lib/sources.ts: the endpoint behind each platform and its list price. Edit to swap providers.
+- src/lib/normalize.ts: maps provider responses to ads
+- config/angles.json: the angle keywords and offer patterns behind the summaries
+- skills/looot-ads/SKILL.md: Claude Code skill that runs the CLI
+
+## Rules an agent must follow
+
+- Always run `--dry-run` first and show the total to the person.
+- Never raise `--max-spend` without being told to.
+- Exit code 1 with "pending" means a run is still going. It is not a failure and not charged twice. Run the same command again.
+- Stores links and short text only. Do not download or rehost ad creatives.

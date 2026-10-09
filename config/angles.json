@@ -1,0 +1,26 @@
+{
+  "_readme": "Edit freely. An angle is a theme in the ad copy; a hit is any keyword found in the headline or body. Offers are regular expressions (case-insensitive) matched against the same text.",
+  "angles": {
+    "Price and savings": ["save", "cheaper", "discount", "affordable", "lowest price", "cost less", "half the price", "budget"],
+    "Speed and ease": ["in minutes", "in seconds", "instantly", "easy", "simple", "no code", "one click", "set up in", "faster", "quick"],
+    "Results and ROI": ["roi", "grow", "increase", "boost", "more leads", "more sales", "revenue", "convert", "results", "double your"],
+    "Social proof": ["trusted by", "customers", "rated", "reviews", "#1", "award", "join ", "teams use", "loved by", "thousands"],
+    "Urgency": ["limited time", "ends", "last chance", "today only", "hurry", "don't miss", "while supplies", "now or never", "this week"],
+    "Risk reversal": ["money back", "guarantee", "no credit card", "cancel anytime", "risk free", "free trial", "try free", "no commitment"],
+    "AI and automation": [" ai ", "ai-powered", "automate", "automation", "agent", "copilot", "machine learning"],
+    "Security and trust": ["secure", "security", "compliance", "soc 2", "gdpr", "privacy", "encrypted"],
+    "Pain point question": ["tired of", "struggling", "sick of", "still using", "why is", "what if", "ever wonder"]
+  },
+  "offers": [
+    { "label": "Percent off", "pattern": "\\b\\d{1,2}\\s?% off" },
+    { "label": "Amount off", "pattern": "[$€£]\\s?\\d+(\\.\\d+)?\\s?off" },
+    { "label": "Free trial", "pattern": "free trial|try (it )?free|start free" },
+    { "label": "Free shipping", "pattern": "free shipping|free delivery" },
+    { "label": "Demo or call", "pattern": "book a (demo|call)|request a demo|get a demo|free demo|schedule a (demo|call)" },
+    { "label": "Free audit or quote", "pattern": "free (audit|consultation|quote|sample|assessment|report)" },
+    { "label": "Guarantee", "pattern": "money.?back|guarantee" },
+    { "label": "Buy one get one", "pattern": "buy one,? get one|bogo|2 for 1" },
+    { "label": "No credit card", "pattern": "no credit card" },
+    { "label": "Limited time", "pattern": "limited time|today only|ends (today|tonight|soon|sunday|monday|friday)" }
+  ]
+}
