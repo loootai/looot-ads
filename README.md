@@ -1,4 +1,8 @@
+<p align="center"><img src="assets/hero.png" alt="looot-ads" width="100%"></p>
+
 # looot-ads
+
+[![License](https://img.shields.io/github/license/loootai/looot-ads)](LICENSE) [![Release](https://img.shields.io/github/v/release/loootai/looot-ads)](https://github.com/loootai/looot-ads/releases) [![Docs](https://img.shields.io/badge/docs-docs.looot.ai-12A06A)](https://docs.looot.ai)
 
 An open-source alternative to Foreplay, the competitor ad library and swipe-file tool. Foreplay starts at $49 a month billed annually ($59 monthly), read on its public pricing page on 2026-10-10. This repo pulls the same kind of data on demand through one looot key and charges per call. A pull of five competitors across four platforms is about $0.11 at list prices.
 
@@ -102,3 +106,20 @@ The skill runs `--dry-run` first, shows the total, and runs only after you agree
 ## Licence
 
 MIT, copyright looot. Foreplay is a trademark of its owner. This project is not affiliated with it and uses none of its code, text or images.
+
+## Related
+
+Other open-source projects built on [looot](https://looot.ai):
+
+- [looot-intent](https://github.com/loootai/looot-intent): account intent and buying-stage scoring (6sense)
+- [looot-score](https://github.com/loootai/looot-score): lead and ICP fit scoring (MadKudu)
+- [looot-reveal](https://github.com/loootai/looot-reveal): which companies visit your site (RB2B, Clearbit Reveal)
+- [looot-techstack](https://github.com/loootai/looot-techstack): website technologies from several providers (BuiltWith, Wappalyzer)
+- [looot-signals](https://github.com/loootai/looot-signals): hiring, funding and news triggers (TheirStack, Harmonic)
+- [looot-lookalike](https://github.com/loootai/looot-lookalike): lookalike company search (Ocean.io)
+- [looot-reviews](https://github.com/loootai/looot-reviews): review themes and weak spots (ReviewTrackers)
+- [looot-battlecards](https://github.com/loootai/looot-battlecards): competitor battlecards (Klue, Crayon)
+- [looot-mentions](https://github.com/loootai/looot-mentions): brand and keyword listening (Brand24)
+- [looot-crm](https://github.com/loootai/looot-crm): a small CRM with buying signals built in
+- [looot-seo](https://github.com/loootai/looot-seo): self-hosted SEO workspace
+- [looot-monitor](https://github.com/loootai/looot-monitor): brand and competitor monitoring with alerts
