@@ -14,30 +14,80 @@ Name competitors by domain or by name. looot-ads reads their ads from the Meta, 
 
 The demo data is invented. The brands (Brightloop, Pelican Pay, Quillbase) do not exist, their domains end in `.example`, and every thumbnail is a generated placeholder labelled as one.
 
-## Three ways to run it
+## What you need
 
-**Demo, no account and no token.**
+- Node 22.12 or newer. `package.json` has no `engines` field. Next.js 16 needs 20.9 or newer and the test runner (vitest 5) needs 22.12 or newer. I ran everything below on Node 24.
+- npm. Nothing else for the demo and for `--dry-run`.
+- A looot account and an agent token, only for a real pull. Sign up at https://looot.ai/auth/sign-up. To get a token, run `npm i -g looot` and then `looot login`, which opens a browser approval. Or open the looot web app, go to Settings, "Agent tokens" and create one (https://docs.looot.ai/get-started/sign-in). With no browser, create the token there and `export LOOOT_TOKEN=...`.
+- The token needs the scopes `runs.execute`, `catalog.read`, `runs.read` and `usage.read`.
+- A funded balance. A run needs prepaid credit, the minimum top-up is $5, and signing up adds no credit (https://docs.looot.ai/money).
+
+No other account is used. There is no Supabase and no sign-in in this repo.
+
+## Try it in one minute
+
+No account and no token.
 
 ```bash
+git clone https://github.com/loootai/looot-ads.git
+cd looot-ads
 npm install --ignore-scripts
-npm run demo        # web UI at http://localhost:3220 with invented brands
+npm run demo
 ```
 
-**Headless CLI.** One command in, JSON, CSV and markdown out.
+The web UI opens at http://localhost:3220 (`next dev -p 3220`) with invented brands. `/new` shows the quote page. In demo mode the run button makes no looot call. If port 3220 is busy, run `NEXT_PUBLIC_DEMO=1 npx next dev -p 3221`. For the same data as files, run `npm run ads -- --demo --out out`, which writes `out/ads.json`, `out/ads.csv` and `out/brief.md` and prints `Demo report written to out. 20 invented ads, no looot call.`
+
+## Run it with your own data
+
+Copy the example env file. The web UI (Next.js) reads `.env.local`. The CLI does not read any env file, so load it into your shell first.
 
 ```bash
-export LOOOT_TOKEN=...                       # https://looot.ai/settings
-npm run ads -- --competitors "acme.com,Globex" --dry-run     # prints the price, makes no call
-npm run ads -- --file competitors.example.csv --max-spend 0.25 --out out
+cp .env.example .env.local     # then put your token in LOOOT_TOKEN
+set -a; source .env.local; set +a
 ```
 
-Options: `--platforms meta,google,linkedin,tiktok`, `--max-spend <usd>` (default 1.00), `--fresh <tag>` to pull again, `--demo` to write the demo report. It writes `ads.json`, `ads.csv` and `brief.md`. Exit code 0 is done, 1 means a source failed or is pending, 2 is bad usage.
+| Variable | Required | What it does | Where to get it |
+| --- | --- | --- | --- |
+| `LOOOT_TOKEN` | Yes for a real pull. Not needed for `--dry-run`, `--demo` or `npm run demo`. | The looot agent token. Server side only, never sent to the browser. | `looot login`, or Settings, "Agent tokens" in the looot web app |
+| `LOOOT_API_URL` | Optional | looot API base URL. Default `https://api.looot.ai`. Also used when reading live prices. | Leave unset |
+| `LOOOT_ADS_DATA_DIR` | Optional | Folder where the web UI saves the last pull as `latest.json`. Default `./.looot-data`. | Any folder you own |
+| `NEXT_PUBLIC_DEMO` | Optional | `1` shows the invented demo data and blocks every looot call. `npm run demo` sets it for you. | Do not set it for real pulls |
 
-**Web UI on the same engine.** `npm run dev`, open `/new`, paste competitors, press "Show the price", then "Run for $0.11". The run button works only on a quote you have seen. If the live price rose above what you confirmed, the server refuses with a 409 and asks you to quote again. Supabase and sign-in are not used. The last pull is saved to `.looot-data/latest.json` on your machine.
+Put your competitors in a CSV with a `name` and a `domain` column, one per line. `competitors.example.csv` in this repo has five invented ones (domains end in `.example`). A plain list of names or domains also works, or pass `--competitors "acme.com,Globex"`.
+
+Price first. A dry run needs no token and makes no call. It uses the list prices dated 2026-10-10. This is the real output of `npm run ads -- --file competitors.example.csv --dry-run`:
+
+```text
+Plan
+
+  Brightloop             Meta      adyntel-facebook                                     $0.00642
+  Brightloop             Google    adyntel-google                                       $0.00642
+  Brightloop             LinkedIn  adyntel-linkedin                                     $0.00642
+  Brightloop             TikTok    scrapecreators-tiktok-ad-library-search              $0.00188
+  (the same four lines for Pelican Pay, Quillbase, Northfield and Halcyon)
+
+  20 calls, $0.1057 at list prices dated 2026-10-10. Spend cap $1.00.
+
+Dry run: no looot call was made and nothing was written.
+```
+
+A name without a domain skips Google. `npm run ads -- --competitors "acme.com,Globex" --dry-run` prints `7 calls, $0.02678` and a line `Globex  Google  skipped: Google Ads Transparency Center needs a domain for Globex; add one to include it.`
+
+Then the real pull, with a cap near the quoted total (the example domains are invented, so use your own competitors):
+
+```bash
+npm run ads -- --file competitors.csv --max-spend 0.25 --out out
+```
+
+Options: `--platforms meta,google,linkedin,tiktok`, `--max-spend <usd>` (default 1.00), `--out <dir>` (default `out`), `--fresh <tag>` to pull again, `--demo` to write the demo report. Before it runs, the CLI reads live prices from the catalog and prints the plan again. Results go to `out/ads.json`, `out/ads.csv` and `out/brief.md`. `ads.json` lists every call under `runs`, each with its `runId`. Exit code 0 is done, 1 means a source failed or is pending, 2 is bad usage.
+
+Web UI on the same engine. Run `npm run dev`, open http://localhost:3000/new, paste competitors, press "Show the price", then "Run for $0.11". The run button works only on a quote you have seen. If the live price rose above what you confirmed, the server refuses with a 409 and asks you to quote again. The last pull is saved to `.looot-data/latest.json` on your machine.
 
 ![New pull page](docs/screenshots/new-light.png)
 
-## What it costs
+## Spending
+
+looot shows the price before each paid action, and so does this repo. The CLI prints the plan first and the web UI shows a table and a total before the run button works. The spend cap is `--max-spend` in the CLI, default $1.00, and the "Spend cap" field in the web UI. A pull of five competitors across four platforms is about $0.11 at list prices.
 
 Prices are the per-call list prices in the public looot catalog on 2026-10-10. The CLI reads live prices before running and uses these only for `--dry-run` or when the catalog cannot be read.
 
@@ -50,21 +100,21 @@ Prices are the per-call list prices in the public looot catalog on 2026-10-10. T
 | LinkedIn | name | `ads.linkedin.search` | `scrapecreators-linkedin-ads-search` | $0.00188 |
 | TikTok | name | `tiktok.ad-library.search` | `scrapecreators-tiktok-ad-library-search` | $0.00188 |
 
-A competitor with a domain on all four platforms costs $0.0211. Five competitors cost $0.1057. This is the real output of `npm run ads -- --file competitors.example.csv --dry-run`:
-
-```text
-20 calls, $0.1057 at list prices dated 2026-10-10. Spend cap $1.00.
-```
+A competitor with a domain on all four platforms costs $0.0211. Five competitors cost $0.1057, as the dry run above shows.
 
 Other ad-library endpoints exist in the catalog (SearchApi for Meta, LinkedIn, TikTok and Google, HarvestAPI and Anysite for LinkedIn, Anysite and TikHub for TikTok). Swap one in by editing `src/lib/sources.ts`. Each endpoint is pinned with no provider fallback, so the quoted price is the price.
 
-## Money rules
+Rules the code enforces.
 
 - The price of every call is shown before the call. The CLI prints the plan first. The web UI shows a table and a total.
 - A per-run spend cap is enforced before each call. A call that would pass the cap is not made and is marked "blocked".
 - Each call has a stable idempotency key made from the endpoint and the input. Running the same input again replays the stored run and is not charged twice. `--fresh <tag>` changes the key when you want a new pull.
 - A run still going when waiting stops is "pending", never "failed". It counts against the cap at its quoted price until it settles.
 - A failed run costs nothing, and the report says why.
+
+## Deploy
+
+This repo has no `vercel.json` and no GitHub workflow. The web UI saves the last pull to a local folder (`.looot-data`), which Vercel does not keep between requests and may not let you write, so run it on your own machine or a server with a disk. If you still import it into Vercel, set `LOOOT_TOKEN` as an environment variable but the saved board will not last. The CLI needs no deploy.
 
 ## How the summary is made
 
@@ -77,9 +127,27 @@ Angles and offers come from keyword and pattern rules in `config/angles.json`, n
 - Foreplay also offers a discovery library of ads from brands you did not name, creative analytics on your own ad account and AI briefs. None of that is here. looot has no source for those.
 - Google needs a domain. A name alone skips Google and says so in the report.
 
-## What is not tested
+## Troubleshooting
 
-No paid looot run was made while building this. The code that turns a provider response into ads is built from the endpoint descriptions in the catalog, from the field names those providers document, and from fixtures written to match. It reads many alias names for each field and skips what it cannot read, but the first real pull may show a field it misses. If a provider returns ads that look empty, open `out/ads.json`, send the raw shape in an issue, and add the alias in `src/lib/normalize.ts`. The unit tests mock HTTP.
+| What you see | Cause and fix |
+| --- | --- |
+| `LOOOT_TOKEN is not set. Create an agent token at https://looot.ai/settings, or use --dry-run or --demo.` | The CLI found no token. Run `set -a; source .env.local; set +a` or `export LOOOT_TOKEN=...`. The token page is Settings, "Agent tokens" in the looot web app. Exit code 2. |
+| `LOOOT_TOKEN is not set on the server.` (HTTP 501 from the web UI) | Put `LOOOT_TOKEN` in `.env.local` and restart `npm run dev`. |
+| `Demo mode makes no looot call.` (HTTP 403) | You started with `npm run demo` or `NEXT_PUBLIC_DEMO=1`. Use `npm run dev`. |
+| A source shows `failed` with a message and a code in brackets, such as `... (code)` | The message and code come from the looot API. A 401 means the token is wrong, revoked or lacks a scope (it needs `runs.execute`, `catalog.read`, `runs.read`, `usage.read`). A balance error means the account has no credit, so top up at https://docs.looot.ai/money. Failed calls cost nothing. |
+| `Spend cap reached (... of ...). This call would cost more than the cap allows.` | The call was marked "blocked" and not made. Raise `--max-spend` if you accept the price. |
+| `The live price could not be read, so the call was not made.` | The catalog price for that endpoint could not be read. Try again, or check `LOOOT_API_URL`. |
+| `Still queued when waiting stopped. Not failed. Run the same command again to read it; the stored run is replayed and not charged twice.` (the status word can differ) | The run is pending. Run the same command again. |
+| `The run ended as blocked. Nothing was charged.` (or `stopped`) | The run ended without a result. Read the run in the looot web app. |
+| `The library returned no ads for this input.` | The call worked but the parser found no ads. Either the advertiser has none, or the response has a shape the parser does not know. See Status below. |
+| `The price changed since you confirmed it. Quote again.` (HTTP 409) | The live price rose after you confirmed. Press "Show the price" again. |
+| `Spend cap must be a positive dollar amount, got "..."` | Pass a number above zero, such as `--max-spend 0.25`. |
+
+How to file an issue. Open an issue at https://github.com/loootai/looot-ads/issues with the run id (from `runs` in `out/ads.json`), the command you used, and the raw response body with secrets removed.
+
+## Status
+
+No paid looot run was made while building this. The code that turns a provider response into ads is built from the endpoint descriptions in the catalog, from the field names those providers document, and from fixtures written to match. It reads many alias names for each field and skips what it cannot read, but the first real pull may show a field it misses. If a provider returns ads that look empty, open an issue with the raw response (see Troubleshooting), and add the alias in `src/lib/normalize.ts`. The unit tests mock HTTP.
 
 ## Develop
 
