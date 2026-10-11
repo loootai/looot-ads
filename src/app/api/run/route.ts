@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { allow, retryAfter } from "@/lib/auth/limits";
+import { requireAdminRoute, sessionIdOf } from "@/lib/auth/guard";
+import { pullDigest, verifyQuoteToken } from "@/lib/auth/session";
 import { IS_DEMO, today } from "@/lib/clock";
 import { hasLoootToken, loootFromEnv } from "@/lib/looot";
 import { fetchPrices } from "@/lib/prices";
 import { buildPlan, runPlan } from "@/lib/runner";
-import { parseCapUsd } from "@/lib/spend";
+import { serverCapMicros } from "@/lib/spend";
 import { parseCompetitorList } from "@/lib/sources";
 import { saveReport } from "@/lib/store";
 import { PLATFORMS } from "@/lib/types";
@@ -12,30 +15,41 @@ import { PLATFORMS } from "@/lib/types";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
+/** The spend cap and the confirmed total are not fields. The server sets the cap, and the total lives inside the signed quoteToken. */
 const Body = z.object({
-  competitors: z.string().min(1),
+  competitors: z.string().min(1).max(20_000),
   platforms: z.array(z.enum(PLATFORMS as [string, ...string[]])).min(1),
-  maxSpendUsd: z.union([z.string(), z.number()]),
-  /** The total the person saw in the quote and agreed to, in micro-dollars. A live total above it refuses the run. */
-  confirmedTotalMicros: z.number().int().nonnegative(),
+  quoteToken: z.string().min(1).max(200),
 });
 
-/** Paid. Runs the plan the person confirmed. Refuses in demo mode, without a token, or when the live price rose above the confirmed total. */
+/** 6 paid runs per session per hour. */
+const RUN_LIMIT = 6;
+const RUN_WINDOW_MS = 60 * 60_000;
+
+/**
+ * Admin. Paid. Runs the plan the person confirmed. Refuses in demo mode, without a token, without a quote token
+ * this server signed for this session and this pull, or when the live price rose above the quoted total.
+ */
 export async function POST(req: Request) {
+  const denied = await requireAdminRoute(req);
+  if (denied) return denied;
   if (IS_DEMO) return NextResponse.json({ error: "Demo mode makes no looot call." }, { status: 403 });
   if (!hasLoootToken()) return NextResponse.json({ error: "LOOOT_TOKEN is not set on the server." }, { status: 501 });
+  const sid = await sessionIdOf(req.headers);
+  if (!sid) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Bad request." }, { status: 400 });
   const competitors = parseCompetitorList(parsed.data.competitors.replace(/,/g, "\n"));
-  let cap: number;
-  try {
-    cap = parseCapUsd(parsed.data.maxSpendUsd);
-  } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 400 });
+  if (competitors.length === 0) return NextResponse.json({ error: "No competitor found in that text." }, { status: 400 });
+  const digest = await pullDigest(competitors.map((c) => c.id), parsed.data.platforms);
+  const quotedMicros = await verifyQuoteToken(process.env, sid, digest, parsed.data.quoteToken);
+  if (quotedMicros === null) return NextResponse.json({ error: "Get a new price first. The quote is missing, expired, or for a different pull." }, { status: 409, headers: { "Cache-Control": "no-store" } });
+  if (!allow(`run:${sid}`, RUN_LIMIT, RUN_WINDOW_MS)) {
+    return NextResponse.json({ error: "Too many paid runs this hour." }, { status: 429, headers: { "Retry-After": String(retryAfter(`run:${sid}`)), "Cache-Control": "no-store" } });
   }
   const priced = await fetchPrices();
-  const plan = buildPlan(competitors, parsed.data.platforms as never, priced.prices, cap);
-  if (plan.totalMicros > parsed.data.confirmedTotalMicros) {
+  const plan = buildPlan(competitors, parsed.data.platforms as never, priced.prices, serverCapMicros());
+  if (plan.totalMicros > quotedMicros) {
     return NextResponse.json({ error: "The price changed since you confirmed it. Quote again.", plan }, { status: 409 });
   }
   const report = await runPlan({ competitors, plan, looot: loootFromEnv(), unpriced: priced.unread, today: today() });

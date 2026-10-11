@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { Board } from "@/components/Board";
+import { requireAdminPage } from "@/lib/auth/guard";
 import { usd } from "@/lib/money";
 import { loadReport } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export default async function BoardPage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
+  await requireAdminPage();
   const { c } = await searchParams;
   const report = loadReport();
   if (!report) {

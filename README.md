@@ -8,6 +8,8 @@ An open-source alternative to Foreplay, the competitor ad library and swipe-file
 
 Name competitors by domain or by name. looot-ads reads their ads from the Meta, Google Ads Transparency, LinkedIn and TikTok ad libraries and shows a board of creatives with the copy, first seen date, running time, platform and landing page. For each competitor it adds a summary of the angles and offers in their copy.
 
+> **Security notice.** Versions 0.1.3 and older had no admin sign-in. Anyone who could reach a deployed web UI could read the saved pull, and could start paid looot runs on your token with a spend cap they chose. If you run v0.1.3 or older on a reachable host, upgrade to v0.1.4 and set `ADS_ADMIN_PASSWORD`. See [Securing a deployment](#securing-a-deployment).
+
 ![Board, light theme](docs/screenshots/board-light.png)
 
 ![One competitor, dark theme](docs/screenshots/competitor-dark.png)
@@ -22,7 +24,7 @@ The demo data is invented. The brands (Brightloop, Pelican Pay, Quillbase) do no
 - The token needs the scopes `runs.execute`, `catalog.read`, `runs.read` and `usage.read`.
 - A funded balance. A run needs prepaid credit, the minimum top-up is $5, and signing up adds no credit (https://docs.looot.ai/money).
 
-No other account is used. There is no Supabase and no sign-in in this repo.
+No other account is used. There is no Supabase and no user database. The web UI has one admin password that you set yourself (see [Securing a deployment](#securing-a-deployment)). The demo needs none.
 
 ## Try it in one minute
 
@@ -51,6 +53,11 @@ set -a; source .env.local; set +a
 | `LOOOT_TOKEN` | Yes for a real pull. Not needed for `--dry-run`, `--demo` or `npm run demo`. | The looot agent token. Server side only, never sent to the browser. | `looot login`, or Settings, "Agent tokens" in the looot web app |
 | `LOOOT_API_URL` | Optional | looot API base URL. Default `https://api.looot.ai`. Also used when reading live prices. | Leave unset |
 | `LOOOT_ADS_DATA_DIR` | Optional | Folder where the web UI saves the last pull as `latest.json`. Default `./.looot-data`. | Any folder you own |
+| `ADS_ADMIN_PASSWORD` | Yes for the web UI outside the demo | Admin password, 12 characters or more. Without it every admin page and route stays closed and `/login` shows what to set. The CLI does not need it. | You choose it |
+| `ADS_ADMIN_PASSWORD_HASH` | Optional | Replaces the plain password. Output of `npm run hash-password -- 'your password'`. Wins if both are set. | `npm run hash-password` |
+| `ADS_SPEND_CAP_USD` | Optional | The web UI's spend cap per pull. Default 1.00, at most 100. Only the server sets it. | You choose it |
+| `ADS_SESSION_SECRET` | Optional | Key that signs session cookies. Default: derived from the password, so a new password signs everyone out. | Any long random string |
+| `ADS_COOKIE_SECURE` | Optional | Set to `0` only to test over plain http in production mode. | Leave unset |
 | `NEXT_PUBLIC_DEMO` | Optional | `1` shows the invented demo data and blocks every looot call. `npm run demo` sets it for you. | Do not set it for real pulls |
 
 Put your competitors in a CSV with a `name` and a `domain` column, one per line. `competitors.example.csv` in this repo has five invented ones (domains end in `.example`). A plain list of names or domains also works, or pass `--competitors "acme.com,Globex"`.
@@ -81,13 +88,13 @@ npm run ads -- --file competitors.csv --max-spend 0.25 --out out
 
 Options: `--platforms meta,google,linkedin,tiktok`, `--max-spend <usd>` (default 1.00), `--out <dir>` (default `out`), `--fresh <tag>` to pull again, `--demo` to write the demo report. Before it runs, the CLI reads live prices from the catalog and prints the plan again. Results go to `out/ads.json`, `out/ads.csv` and `out/brief.md`. `ads.json` lists every call under `runs`, each with its `runId`. Exit code 0 is done, 1 means a source failed or is pending, 2 is bad usage.
 
-Web UI on the same engine. Run `npm run dev`, open http://localhost:3000/new, paste competitors, press "Show the price", then "Run for $0.11". The run button works only on a quote you have seen. If the live price rose above what you confirmed, the server refuses with a 409 and asks you to quote again. The last pull is saved to `.looot-data/latest.json` on your machine.
+Web UI on the same engine. Set `ADS_ADMIN_PASSWORD` in `.env.local`, run `npm run dev`, open http://localhost:3000/new and sign in. Paste competitors, press "Show the price", then "Run for $0.11". The server signs each quote. The run button works only with a quote the server signed for your session and for those competitors and platforms, and it expires after 10 minutes. If the live price rose above the quote, the server refuses with a 409 and asks you to quote again. The cap is `ADS_SPEND_CAP_USD`, not a field in the page. The last pull is saved to `.looot-data/latest.json` on your machine.
 
 ![New pull page](docs/screenshots/new-light.png)
 
 ## Spending
 
-looot shows the price before each paid action, and so does this repo. The CLI prints the plan first and the web UI shows a table and a total before the run button works. The spend cap is `--max-spend` in the CLI, default $1.00, and the "Spend cap" field in the web UI. A pull of five competitors across four platforms is about $0.11 at list prices.
+looot shows the price before each paid action, and so does this repo. The CLI prints the plan first and the web UI shows a table and a total before the run button works. The spend cap is `--max-spend` in the CLI, default $1.00, and `ADS_SPEND_CAP_USD` for the web UI (the page shows it and cannot change it). The web UI allows 6 paid runs per session per hour. A pull of five competitors across four platforms is about $0.11 at list prices.
 
 Prices are the per-call list prices in the public looot catalog on 2026-10-10. The CLI reads live prices before running and uses these only for `--dry-run` or when the catalog cannot be read.
 
@@ -114,7 +121,60 @@ Rules the code enforces.
 
 ## Deploy
 
-This repo has no `vercel.json` and no GitHub workflow. The web UI saves the last pull to a local folder (`.looot-data`), which Vercel does not keep between requests and may not let you write, so run it on your own machine or a server with a disk. If you still import it into Vercel, set `LOOOT_TOKEN` as an environment variable but the saved board will not last. The CLI needs no deploy.
+Read [Securing a deployment](#securing-a-deployment) first and set `ADS_ADMIN_PASSWORD`. Without it the admin pages stay closed. This repo has no `vercel.json` and no GitHub workflow. The web UI saves the last pull to a local folder (`.looot-data`), which Vercel does not keep between requests and may not let you write, so run it on your own machine or a server with a disk. If you still import it into Vercel, set `LOOOT_TOKEN` as an environment variable but the saved board will not last. The CLI needs no deploy.
+
+## Securing a deployment
+
+Versions 0.1.3 and older had no admin authentication. From 0.1.4 every route is either public on purpose or admin, and the admin routes are closed unless you set a password.
+
+### Route map
+
+Pages and routes were listed from `src/app` and classified. A test reads the folder and fails if a route is missing from `src/lib/auth/routes.ts` or if an admin route does not call the gate.
+
+| Class | Count | Routes |
+| --- | --- | --- |
+| Public by design | 4 routes | `/api/health`, `/login`, `/api/auth/login`, `/api/auth/logout` |
+| Public static files | 2 | `/brand/*` (the logo), `/favicon.ico` |
+| Admin pages | 2 | `/` (the board), `/new` (quote and run) |
+| Admin API | 3 | `/api/quote` (reads the live catalog), `/api/run` (paid looot run), `/placeholder/[name]` (demo creative images) |
+
+There are no server actions, no webhooks and no export routes. Any path not listed is treated as admin. The CLI (`npm run ads`) runs on your machine with your own token and does not go through the web gate.
+
+### How the gate works
+
+- `src/proxy.ts` checks every request. Each admin page, the root layout and each admin route handler checks again with the same function, so a path the matcher misses is still closed.
+- Not set up (no password, and not a clean demo): admin routes answer 503, admin pages redirect to `/login`, which says what to set. Nothing stored is rendered.
+- Set up: a valid session is required. Page requests without one redirect to `/login`. API requests get 401.
+- Sign-in: constant-time password comparison. A session is a signed token in an httpOnly, SameSite=Lax cookie, Secure in production, valid for 8 hours. 5 wrong passwords from one address lock that address for 15 minutes. 40 wrong passwords from anywhere lock sign-in for everyone for 15 minutes (a brute-force guard that also lets an attacker delay you, so use a long password and an IP allow-list too).
+- State-changing admin requests need a same-origin `Origin` header and the per-session token in `x-ads-csrf`. The layout puts the token in a meta tag and the app's own fetch calls send it.
+- Admin responses carry `Cache-Control: no-store`. All responses carry a Content-Security-Policy (`frame-ancestors 'none'`), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer`. The CSP allows inline scripts because Next.js needs them, and https images and video because ad thumbnails load from the ad libraries' own links.
+- The password and token never reach the client bundle. The server reads them at runtime.
+
+### Money
+
+- The spend cap comes from `ADS_SPEND_CAP_USD` on the server (default 1.00, at most 100). `/api/quote` and `/api/run` ignore any cap in the request body.
+- `/api/quote` returns a quote token signed for your session, for those competitors and platforms, and for that total, valid for 10 minutes. `/api/run` refuses without a valid token, and refuses when the live price is above the signed total.
+- `/api/run` allows 6 runs per session per hour, `/api/quote` 60 per 10 minutes. The limits sit in memory in one process. Behind several instances, rate limit at the proxy too.
+- The demo never calls looot. It starts only where no `LOOOT_TOKEN` and no saved pull exist, unless you also set a password.
+- The address for sign-in lockout comes from `x-forwarded-for`, so run the app behind a proxy that sets it and strips what clients send.
+
+### Setup
+
+```bash
+export ADS_ADMIN_PASSWORD='a password of 12 or more characters'
+# or keep it out of the environment as plain text:
+npm run hash-password -- 'a password of 12 or more characters'   # prints ADS_ADMIN_PASSWORD_HASH=...
+```
+
+Rotate the password by changing the variable and restarting. Changing it signs every session out. The last pull is saved to `.looot-data/latest.json` (or `LOOOT_ADS_DATA_DIR`), a plain file on the server's disk. Protect and back it up like any file you do not want shared.
+
+### The stronger option
+
+A shared password is the floor. For anything people other than you can reach, put the admin paths behind a VPN, a private network or an identity-aware proxy (Cloudflare Access, Tailscale, Google IAP, oauth2-proxy) and keep only the public routes in the table above open to the internet. Keep the app's password on as well.
+
+### Not covered
+
+No per-user accounts, no roles, no audit of who signed in, and no Supabase option. The app has one admin.
 
 ## How the summary is made
 

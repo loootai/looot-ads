@@ -33,3 +33,17 @@ export function parseCapUsd(raw: string | number): number {
   if (!Number.isFinite(n) || n <= 0) throw new Error(`Spend cap must be a positive dollar amount, got "${raw}".`);
   return Math.round(n * 1_000_000);
 }
+
+/** Highest spend cap the server accepts from its own config, so a typo cannot open an unbounded run. */
+export const MAX_SERVER_CAP_USD = 100;
+
+/** The spend cap in micros. Read from ADS_SPEND_CAP_USD on the server (default 1.00), never from a request. */
+export function serverCapMicros(env: Record<string, string | undefined> = process.env): number {
+  const raw = env.ADS_SPEND_CAP_USD?.trim();
+  if (!raw) return parseCapUsd("1.00");
+  try {
+    return Math.min(parseCapUsd(raw), MAX_SERVER_CAP_USD * 1_000_000);
+  } catch {
+    return parseCapUsd("1.00");
+  }
+}

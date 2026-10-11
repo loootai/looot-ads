@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { usdPrecise } from "@/lib/money";
+import { adminFetch } from "./adminFetch";
 import type { Plan } from "@/lib/runner";
 import type { Competitor, Platform } from "@/lib/types";
 
@@ -10,17 +11,18 @@ const ALL: Platform[] = ["meta", "google", "linkedin", "tiktok"];
 
 interface Quote {
   plan: Plan;
+  /** Signed by the server with the price. /api/run needs it. Null in the demo. */
+  quoteToken: string | null;
   competitors: Competitor[];
   priceNote: string;
   unread: string[];
 }
 
 /** Competitors in, quote out, then a run button that only works on a quote the person has seen. */
-export function NewPull({ demo, hasToken }: { demo: boolean; hasToken: boolean }) {
+export function NewPull({ demo, hasToken, capMicros }: { demo: boolean; hasToken: boolean; capMicros: number }) {
   const router = useRouter();
   const [text, setText] = useState("");
   const [platforms, setPlatforms] = useState<Platform[]>(ALL);
-  const [cap, setCap] = useState("1.00");
   const [quote, setQuote] = useState<Quote | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export function NewPull({ demo, hasToken }: { demo: boolean; hasToken: boolean }
   async function getQuote() {
     setBusy(true);
     setMessage(null);
-    const res = await fetch("/api/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ competitors: text, platforms, maxSpendUsd: cap }) });
+    const res = await adminFetch("/api/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ competitors: text, platforms }) });
     const json = await res.json();
     setBusy(false);
     if (!res.ok) {
@@ -42,14 +44,14 @@ export function NewPull({ demo, hasToken }: { demo: boolean; hasToken: boolean }
     if (!quote) return;
     setBusy(true);
     setMessage("Running. This can take a minute per source.");
-    const res = await fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ competitors: text, platforms, maxSpendUsd: cap, confirmedTotalMicros: quote.plan.totalMicros }) });
+    const res = await adminFetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ competitors: text, platforms, quoteToken: quote.quoteToken }) });
     const json = await res.json();
     setBusy(false);
     if (!res.ok) return setMessage(json.error ?? "The run failed.");
     router.push("/");
   }
 
-  const canRun = !demo && hasToken && quote !== null && quote.plan.lines.length > 0 && !busy;
+  const canRun = !demo && hasToken && quote !== null && quote.quoteToken !== null && quote.plan.lines.length > 0 && !busy;
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
@@ -66,8 +68,7 @@ export function NewPull({ demo, hasToken }: { demo: boolean; hasToken: boolean }
           </label>
         ))}
         <label className="ml-auto flex items-center gap-2 text-12 text-mute">
-          Spend cap $
-          <input value={cap} onChange={(e) => { setCap(e.target.value); setQuote(null); }} className="num w-20 rounded-control border border-line bg-panel px-2 py-1 text-ink" inputMode="decimal" />
+          Spend cap <span className="num text-ink">{usdPrecise(capMicros)}</span> (set on the server)
         </label>
       </div>
       <button type="button" onClick={getQuote} disabled={busy || !text.trim() || platforms.length === 0} className="rounded-control border border-line bg-panel px-4 py-2 text-13 font-medium hover:bg-hover disabled:opacity-50">
