@@ -67,11 +67,11 @@ describe("keyword discovery plans", () => {
 });
 
 describe("X ads by handle", () => {
-  it("needs a handle and asks for 20 results over the last 365 days", () => {
+  it("needs a handle and asks for 20 results over the 365 days before the current 7-day period", () => {
     const c = planCall(withHandle, "x", SOURCE_DEFS, TODAY);
     expect(isPlanned(c) && c.endpointId).toBe("anysite-api-twitter-ads-search");
     expect(isPlanned(c) && c.jobId).toBe("api.twitter.ads.search");
-    expect(isPlanned(c) && c.input).toEqual({ advertiser: "contoso_example", count: 20, start_date: "2025-10-10", end_date: "2026-10-10" });
+    expect(isPlanned(c) && c.input).toEqual({ advertiser: "contoso_example", count: 20, start_date: "2025-10-08", end_date: "2026-10-08" });
     const none = planCall(named, "x", SOURCE_DEFS, TODAY);
     expect(isPlanned(none)).toBe(false);
     expect("reason" in none && none.reason).toMatch(/handle/);

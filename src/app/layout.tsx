@@ -2,12 +2,13 @@ import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
-import { AppShell, type ShellNavSection } from "@/components/AppShell";
+import { AppShell, type ShellNavSection, type ShellSpend, type ShellSpendRow } from "@/components/AppShell";
 import { currentCsrf, requireAdminPage } from "@/lib/auth/guard";
 import { isPublicPath } from "@/lib/auth/routes";
 import { IS_DEMO } from "@/lib/clock";
 import { usd } from "@/lib/money";
-import { loadReport } from "@/lib/store";
+import type { PeriodStatus } from "@/lib/budget";
+import { budgetStatus } from "@/lib/budgetService";
 import "./globals.css";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ const NAV: ShellNavSection[] = [
     items: [
       { href: "/", label: "Board", icon: "megaphone" },
       { href: "/new", label: "New pull", icon: "play" },
+      { href: "/costs", label: "Costs", icon: "receipt" },
     ],
   },
 ];
@@ -56,7 +58,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
   const gate = await requireAdminPage();
   const csrf = await currentCsrf();
-  const report = loadReport();
+  const b = await budgetStatus();
+  const row = (label: string, p: PeriodStatus): ShellSpendRow => ({ label, used: usd(p.usedMicros), reserved: usd(p.reservedMicros), remaining: usd(p.remainingMicros), cap: usd(p.limitMicros), ratio: p.limitMicros > 0 ? (p.usedMicros + p.reservedMicros) / p.limitMicros : 0 });
+  const spend: ShellSpend = { label: "Spend budget", rows: [row("Today", b.day), row("Month", b.month)], note: IS_DEMO ? "Sample data, nothing charged." : undefined };
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`} suppressHydrationWarning>
       <head>
@@ -70,7 +74,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           nav={NAV}
           demoLabel={gate.policy.mode === "open-demo" ? "Demo, no sign-in" : IS_DEMO ? "Demo data, invented brands" : undefined}
           signOut={gate.policy.mode === "login"}
-          spend={report ? { label: "Spent this pull", spent: usd(report.spendMicros), cap: usd(report.capMicros), ratio: report.capMicros > 0 ? report.spendMicros / report.capMicros : 0 } : undefined}
+          spend={spend}
           primaryAction={{ href: "/new", label: "New pull" }}
         >
           <div className="mx-auto max-w-[1320px] px-4 py-6">{children}</div>

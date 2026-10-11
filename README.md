@@ -12,6 +12,8 @@ Or give it a keyword instead of a name. Discovery mode searches Meta, LinkedIn, 
 
 > **Catalog change.** The Adyntel endpoints that v0.1.4 and older used are no longer in the public looot catalog, so a pull with a live price check would have refused every Meta, Google and LinkedIn call for a domain. v0.1.5 reads Meta and LinkedIn by company name and Google by domain through endpoints that are listed today. A pull is also cheaper (see [Spending](#spending)).
 
+> **Spend limits.** v0.1.6 adds a daily and monthly budget with reserve-then-settle and stored results, so repeating a request is not charged twice and parallel requests cannot pass the budget together. See [Spending](#spending).
+
 > **Security notice.** Versions 0.1.3 and older had no admin sign-in. Anyone who could reach a deployed web UI could read the saved pull, and could start paid looot runs on your token with a spend cap they chose. If you run v0.1.3 or older on a reachable host, upgrade to v0.1.4 and set `ADS_ADMIN_PASSWORD`. See [Securing a deployment](#securing-a-deployment).
 
 ![Board, light theme](docs/screenshots/board-light.png)
@@ -114,7 +116,20 @@ Web UI on the same engine. Set `ADS_ADMIN_PASSWORD` in `.env.local`, run `npm ru
 
 ## Spending
 
-looot shows the price before each paid action, and so does this repo. The CLI prints the plan first and the web UI shows a table and a total before the run button works. The spend cap is `--max-spend` in the CLI, default $1.00, and `ADS_SPEND_CAP_USD` for the web UI (the page shows it and cannot change it). The web UI allows 6 paid runs per session per hour. A pull of five competitors across four platforms is about $0.05 at list prices. One keyword across five platforms is about $0.011.
+looot shows the price before each paid action, and so does this repo. The CLI prints the plan first and the web UI shows a table and a total before the run button works. A pull of five competitors across four platforms is about $0.05 at list prices. One keyword across five platforms is about $0.011.
+
+Four limits stand between a request and a charge, checked in this order: the quote, the cap per pull, the period budget, then the call.
+
+- The quote is printed first. The cap per pull is `--max-spend` in the CLI, default $1.00, and `ADS_SPEND_CAP_USD` for the web UI (the page shows it and cannot change it). A cap in a request body is ignored. The web UI allows 6 paid runs per session per hour.
+- The period budget caps all pulls together: a daily and a monthly amount (UTC), $10 and $50 until you change them. The owner changes them on the Costs page of the web UI, or sets the starting values with `LOOOT_ADS_DAILY_USD` and `LOOOT_ADS_MONTHLY_USD`. A request to `/api/run` cannot carry a budget: a request with a budget field is refused with 400. The CLI refuses a pull whose chargeable quote is above what is left, unless you pass `--partial`.
+- Before each paid call the app reserves its list price in `budget.json` (in `LOOOT_ADS_DATA_DIR`, default `.looot-data`), under a lock file, and refuses the call if used plus reserved plus the price would pass the daily or the monthly budget. Two requests started together cannot both pass. When the call ends the reservation becomes the real charge. A call looot refused with an HTTP answer releases it. A call still running at looot (`pending`) keeps its reservation: it is never recorded as failed at $0 and the budget is never handed back early. Reserved money counts against the budget until the call ends.
+- The next pull looks up every pending call with `GET /v1/runs/{id}` and settles the ones that ended, to their real cost. If looot cannot be reached, or the app died before it got a run id, the reservation stays for 24 hours and is then released.
+- The sidebar and the Costs page show used, reserved and remaining for today and this month. At the budget the pull is refused with a message that names the limit.
+- Every call has a stable key made from the endpoint and the normalised input. No date or time goes in. A finished call is stored in `budget.json` for 40 days. Repeating the same request is answered from the stored result: no call, no reservation, no charge, and the up-front budget check ignores it. If a stored result is missing, looot replays the same key without charging again.
+- A fresh pull is always explicit. `--fresh <tag>` gives the call a new key, derived from the tag, and the tag is the only thing that changes it. The X ads call carries a date window, so its window ends at the first day of the current 7-day period (days counted from 1970-01-01, UTC). The input, and so the key, is the same on every day of the period, and the next period is a new request with its own stable key. X ads shown in the last few days of a period appear after the period ends, or with `--fresh`.
+- The looot token balance is the final limit. Fund a dedicated token with only what you are willing to spend, and keep the budget below it.
+
+The budget lives in a file, so run one instance on a disk that persists. Several instances, or a serverless host with a throwaway disk, do not share it.
 
 Prices are the list prices in the public looot catalog on 2026-10-11. The CLI reads live prices before running and uses these only for `--dry-run` or when the catalog cannot be read.
 
@@ -144,9 +159,9 @@ Other ad-library endpoints exist in the catalog (SearchApi for Meta, LinkedIn an
 Rules the code enforces.
 
 - The price of every call is shown before the call. The CLI prints the plan first. The web UI shows a table and a total.
-- A per-run spend cap is enforced before each call. A call that would pass the cap is not made and is marked "blocked".
-- Each call has a stable idempotency key made from the endpoint and the input. Running the same input again replays the stored run and is not charged twice. `--fresh <tag>` changes the key when you want a new pull.
-- A run still going when waiting stops is "pending", never "failed". It counts against the cap at its quoted price until it settles.
+- A per-run spend cap is enforced before each call. A call that would pass the cap, or the period budget, is not made and is marked "blocked".
+- Each call has a stable idempotency key made from the endpoint and the input. Running the same input again is answered from the stored result and is not charged twice. `--fresh <tag>` changes the key when you want a new pull.
+- A run still going when waiting stops is "pending", never "failed". It counts against the cap at its quoted price, and keeps its reservation in the period budget, until it settles.
 - A failed run costs nothing, and the report says why.
 
 ## Deploy
@@ -165,8 +180,8 @@ Pages and routes were listed from `src/app` and classified. A test reads the fol
 | --- | --- | --- |
 | Public by design | 4 routes | `/api/health`, `/login`, `/api/auth/login`, `/api/auth/logout` |
 | Public static files | 2 | `/brand/*` (the logo), `/favicon.ico` |
-| Admin pages | 2 | `/` (the board), `/new` (quote and run) |
-| Admin API | 3 | `/api/quote` (reads the live catalog), `/api/run` (paid looot run), `/placeholder/[name]` (demo creative images) |
+| Admin pages | 3 | `/` (the board), `/new` (quote and run), `/costs` (budget and cost) |
+| Admin API | 4 | `/api/quote` (reads the live catalog), `/api/run` (paid looot run), `/api/budget` (read, and change the period budget), `/placeholder/[name]` (demo creative images) |
 
 There are no server actions, no webhooks and no export routes. Any path not listed is treated as admin. The CLI (`npm run ads`) runs on your machine with your own token and does not go through the web gate.
 
@@ -183,6 +198,7 @@ There are no server actions, no webhooks and no export routes. Any path not list
 ### Money
 
 - The spend cap comes from `ADS_SPEND_CAP_USD` on the server (default 1.00, at most 100). `/api/quote` and `/api/run` ignore any cap in the request body.
+- The period budget (`PUT /api/budget`) is changed only by the signed-in owner, with the CSRF token. A run request cannot raise it, and one that carries a budget field is refused. See [Spending](#spending). The budget file needs one instance on a persistent disk. The looot token balance is the final limit, so give the app a token funded with only what you are willing to spend.
 - `/api/quote` returns a quote token signed for your session, for those competitors and platforms, and for that total, valid for 10 minutes. `/api/run` refuses without a valid token, and refuses when the live price is above the signed total.
 - `/api/run` allows 6 runs per session per hour, `/api/quote` 60 per 10 minutes. The limits sit in memory in one process. Behind several instances, rate limit at the proxy too.
 - The demo never calls looot. It starts only where no `LOOOT_TOKEN` and no saved pull exist, unless you also set a password.

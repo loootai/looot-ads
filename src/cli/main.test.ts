@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { Budget } from "@/lib/budget";
 import { FALLBACK_PRICES } from "@/lib/prices";
 import { main, type CliDeps } from "./main";
 
@@ -39,7 +40,7 @@ describe("cli", () => {
   it("runs, writes json, csv and markdown, and exits 0", async () => {
     const dir = mkdtempSync(join(tmpdir(), "ads-"));
     const { d } = deps({
-      env: { LOOOT_TOKEN: "x" },
+      env: { LOOOT_TOKEN: "x", LOOOT_ADS_DATA_DIR: dir },
       looot: { runAndWait: async (e) => ({ runId: `r-${e}`, status: "completed", result: { ads: [{ id: e, title: "Save 30% off", is_active: true, start_date: "2026-09-01" }] }, actualCost: 0.001 }) },
       prices: async () => ({ prices: FALLBACK_PRICES, source: "catalog", unread: [] }),
     });
@@ -52,7 +53,7 @@ describe("cli", () => {
   it("exits 1 and says pending when a run is still going", async () => {
     const dir = mkdtempSync(join(tmpdir(), "ads-"));
     const { d, out } = deps({
-      env: { LOOOT_TOKEN: "x" },
+      env: { LOOOT_TOKEN: "x", LOOOT_ADS_DATA_DIR: dir },
       looot: { runAndWait: async () => ({ runId: "r", status: "running" }) },
       prices: async () => ({ prices: FALLBACK_PRICES, source: "catalog", unread: [] }),
     });
@@ -65,5 +66,21 @@ describe("cli", () => {
     const { d } = deps();
     expect(await main(["--demo", "--out", dir], d)).toBe(0);
     expect(JSON.parse(readFileSync(join(dir, "ads.json"), "utf8")).mode).toBe("demo");
+  });
+
+  it("refuses a run whose quote is above what is left of the period budget, and runs with --partial", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "ads-"));
+    await new Budget(join(dir, "budget.json")).setLimits({ dailyMicros: 2_000, monthlyMicros: 2_000 });
+    let calls = 0;
+    const { d, err } = deps({
+      env: { LOOOT_TOKEN: "x", LOOOT_ADS_DATA_DIR: dir },
+      looot: { runAndWait: async () => { calls++; return { runId: "r", status: "completed", result: { ads: [] }, actualCost: 0.00188 }; } },
+      prices: async () => ({ prices: FALLBACK_PRICES, source: "catalog", unread: [] }),
+    });
+    expect(await main(["--competitors", "acme.com", "--platforms", "meta,linkedin", "--out", dir], d)).toBe(2);
+    expect(err.join("")).toMatch(/above what is left of the period budget/);
+    expect(calls).toBe(0);
+    expect(await main(["--competitors", "acme.com", "--platforms", "meta,linkedin", "--partial", "--out", dir], d)).toBe(1);
+    expect(calls).toBe(1);
   });
 });

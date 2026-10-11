@@ -33,6 +33,19 @@ function daysBefore(day: string, n: number): string {
   return new Date(Date.parse(`${day}T00:00:00Z`) - n * DAY_MS).toISOString().slice(0, 10);
 }
 
+/** Days in one request period for calls that carry a date window. */
+export const WINDOW_PERIOD_DAYS = 7;
+
+/**
+ * First day of the current request period: the epoch day rounded down to a multiple of WINDOW_PERIOD_DAYS.
+ * A call that needs a date window ends it here, so the input, and the idempotency key made from it, are the same on every
+ * day of the period and change only when the next period starts. That next request is explicit and has its own stable key.
+ */
+export function periodStart(day: string): string {
+  const epochDay = Math.floor(Date.parse(`${day}T00:00:00Z`) / DAY_MS);
+  return new Date((epochDay - (epochDay % WINDOW_PERIOD_DAYS)) * DAY_MS).toISOString().slice(0, 10);
+}
+
 /**
  * The ad libraries this repo reads. Edit this table to change the endpoint behind a platform.
  * Prices and ids were read from the public looot catalog on 2026-10-11. The Adyntel endpoints this table used before are no longer in that catalog, so a domain now only selects Google.
@@ -82,7 +95,7 @@ export const SOURCE_DEFS: SourceDef[] = [
         needs: "handle",
         fallbackMicros: 360 * 20,
         resultCount: 20,
-        input: (c, ctx) => ({ advertiser: c.handle, count: 20, start_date: daysBefore(ctx.today, 365), end_date: ctx.today }),
+        input: (c, ctx) => ({ advertiser: c.handle, count: 20, start_date: daysBefore(periodStart(ctx.today), 365), end_date: periodStart(ctx.today) }),
       },
     ],
   },

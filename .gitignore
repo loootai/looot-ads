@@ -11,3 +11,4 @@ npm-debug.log*
 coverage/
 .looot-data/
 out/
+.vitest/

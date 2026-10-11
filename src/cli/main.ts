@@ -2,12 +2,13 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { demoReport } from "@/demo/seed";
+import { Budget, budgetFile, defaultLimits } from "@/lib/budget";
 import { today } from "@/lib/clock";
-import { LoootError, loootFromEnv, type LoootRunner } from "@/lib/looot";
-import { usdPrecise } from "@/lib/money";
+import { LoootError, loootFromEnv, type LoootRun, type LoootRunner } from "@/lib/looot";
+import { usd, usdPrecise } from "@/lib/money";
 import { adsToCsv, renderPlan, reportToMarkdown } from "@/lib/output";
 import { ENDPOINT_IDS, FALLBACK_PRICES, PRICES_AS_OF, fetchPrices, type PriceResult } from "@/lib/prices";
-import { buildPlan, runPlan } from "@/lib/runner";
+import { buildPlan, chargeableMicros, runPlan } from "@/lib/runner";
 import { parseCapUsd } from "@/lib/spend";
 import { parseCompetitorList } from "@/lib/sources";
 import { PLATFORMS, type Platform } from "@/lib/types";
@@ -21,12 +22,15 @@ export const HELP = `Usage: npm run ads -- --competitors "acme.com,Globex" [opti
   --file <path>         One competitor per line, or a CSV with a name and a domain column. A line "kw: crm software" is a keyword.
   --platforms <list>    meta,google,linkedin,tiktok,reddit,x,tiktoktop. Default: the original four for a competitor, the five keyword platforms for a keyword.
   --max-spend <usd>     Hard cap for the run in dollars. Default: 1.00
+  --partial             Run until the cap or the period budget is reached, even when the quote is above what is left
   --out <dir>           Where ads.json, ads.csv and brief.md go. Default: out
   --dry-run             Print the calls and the list-price total. Make no looot call.
   --fresh <tag>         Pull again even if the same input ran before. Charged again.
   --demo                Write the demo report (invented brands). No token, no call.
 
-Needs LOOOT_TOKEN in the environment, except with --dry-run or --demo.`;
+Needs LOOOT_TOKEN in the environment, except with --dry-run or --demo.
+The period budget (daily and monthly) lives in .looot-data/budget.json (LOOOT_ADS_DATA_DIR). LOOOT_ADS_DAILY_USD and
+LOOOT_ADS_MONTHLY_USD set the starting amounts (default 10 and 50) until the owner saves new ones in the web UI.`;
 
 export interface CliDeps {
   log: (s: string) => void;
@@ -51,6 +55,7 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         "max-spend": { type: "string", default: "1.00" },
         out: { type: "string", default: "out" },
         "dry-run": { type: "boolean", default: false },
+        partial: { type: "boolean", default: false },
         fresh: { type: "string" },
         demo: { type: "boolean", default: false },
         help: { type: "boolean", default: false },
@@ -120,10 +125,21 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
   if (priced.unread.length > 0) deps.log(`\nThe live price of ${priced.unread.join(", ")} could not be read. Those calls will not run.`);
   deps.log(`\nRunning ${plan.lines.length} calls, at most ${usdPrecise(Math.min(plan.totalMicros, cap))}.\n`);
 
+  // Check order: quote, per-run cap, period budget, then the calls. Runs that ended since last time settle first.
+  const budget = new Budget(budgetFile(deps.env), defaultLimits(deps.env));
+  if ("getRun" in looot) await budget.reconcile(looot as unknown as { getRun(id: string): Promise<LoootRun> });
+  const room = await budget.status();
+  deps.log(`Budget left: ${usd(room.remainingMicros)} (${usd(room.day.remainingMicros)} today, ${usd(room.month.remainingMicros)} this month, ${usd(room.day.reservedMicros)} reserved).`);
+  if ((await chargeableMicros(plan, budget, { freshTag: args.fresh })) > room.remainingMicros && !args.partial) {
+    deps.err("Refused: the quote is above what is left of the period budget. Wait for the period to roll over, raise the budget on the Costs page of the web UI, or pass --partial to run until it is reached.");
+    return 2;
+  }
+
   const report = await runPlan({
     competitors,
     plan,
     looot,
+    ledger: budget,
     unpriced: priced.unread,
     today: today(),
     freshTag: args.fresh,
