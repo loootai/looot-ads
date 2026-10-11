@@ -1,7 +1,7 @@
 {
   "name": "looot-ads",
-  "version": "0.1.4",
-  "description": "Open-source competitor ad board. Pulls ads from the Meta, Google, LinkedIn and TikTok ad libraries through looot, with the price shown before every run.",
+  "version": "0.1.5",
+  "description": "Open-source competitor ad board. Pulls ads from the Meta, Google, LinkedIn, TikTok, Reddit and X ad libraries through looot, by competitor or by keyword, with the price shown before every run.",
   "license": "MIT",
   "private": true,
   "scripts": {

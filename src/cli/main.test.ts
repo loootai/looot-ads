@@ -19,7 +19,7 @@ describe("cli", () => {
     const code = await main(["--competitors", "acme.com,Initech", "--dry-run"], d);
     expect(code).toBe(0);
     expect(called).toBe(false);
-    expect(out.join("\n")).toMatch(/adyntel-facebook/);
+    expect(out.join("\n")).toMatch(/scrapecreators-facebook-adlibrary-company-ads-get/);
     expect(out.join("\n")).toMatch(/skipped: Google Ads Transparency Center needs a domain/);
     expect(out.join("\n")).toMatch(/Dry run: no looot call was made/);
   });

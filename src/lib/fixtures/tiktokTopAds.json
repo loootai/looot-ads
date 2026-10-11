@@ -1,0 +1,30 @@
+{
+  "_note": "Invented sample shaped like TikTok Creative Center top ads as the TikHub endpoint tikhub-api-tiktok-ads-search-ads is documented to return them (data.materials with ad_title, brand_name, video_info). Unverified until a real response is recorded.",
+  "code": 0,
+  "data": {
+    "materials": [
+      {
+        "id": "7100000000000000001",
+        "ad_title": "POV: your CRM updates itself",
+        "brand_name": "Wide World Example",
+        "ctr": 0.032,
+        "like": 1840,
+        "industry_key": "label_22000000000",
+        "objective_key": "campaign_objective_conversion",
+        "video_info": {
+          "vid": "v0000example",
+          "duration": 21,
+          "cover": "https://cdn.example/tt1.jpg",
+          "video_url": { "720p": "https://cdn.example/tt1.mp4" }
+        }
+      },
+      {
+        "id": "7100000000000000002",
+        "ad_title": "Three leads before lunch",
+        "brand_name": "Tailspin Example",
+        "video_info": { "cover": "https://cdn.example/tt2.jpg" }
+      }
+    ],
+    "pagination": { "page": 1, "size": 20, "total_count": 2 }
+  }
+}

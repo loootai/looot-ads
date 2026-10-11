@@ -21,10 +21,15 @@ describe("parseCompetitorList", () => {
 describe("planCall", () => {
   const withDomain = { id: "a", name: "Acme", domain: "acme.com" };
   const nameOnly = { id: "b", name: "Initech" };
-  it("uses the domain variants when a domain exists", () => {
+  it("uses the domain variant on Google when a domain exists", () => {
+    const c = planCall(withDomain, "google");
+    expect(isPlanned(c) && c.endpointId).toBe("searchapi-io-google-ads-transparency-center");
+    expect(isPlanned(c) && c.input).toEqual({ engine: "google_ads_transparency_center", domain: "acme.com" });
+  });
+  it("searches Meta by company name, also for a competitor that has a domain", () => {
     const c = planCall(withDomain, "meta");
-    expect(isPlanned(c) && c.endpointId).toBe("adyntel-facebook");
-    expect(isPlanned(c) && c.input).toEqual({ company_domain: "acme.com" });
+    expect(isPlanned(c) && c.endpointId).toBe("scrapecreators-facebook-adlibrary-company-ads-get");
+    expect(isPlanned(c) && c.input).toEqual({ companyName: "Acme" });
   });
   it("falls back to the name variants", () => {
     const c = planCall(nameOnly, "linkedin");

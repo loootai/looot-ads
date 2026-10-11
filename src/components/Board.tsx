@@ -3,9 +3,10 @@
 import { useMemo, useState } from "react";
 import { AdCard } from "./AdCard";
 import { SummaryPanel } from "./SummaryPanel";
-import type { AdFormat, Platform, Report } from "@/lib/types";
+import { PLATFORMS, PLATFORM_LABEL, type AdFormat, type Platform, type Report } from "@/lib/types";
 
-const PLATFORMS: Platform[] = ["meta", "google", "linkedin", "tiktok"];
+/** The original four always show; the others show once a pull has ads from them. */
+const CORE: Platform[] = ["meta", "google", "linkedin", "tiktok"];
 const FORMATS: AdFormat[] = ["image", "video", "carousel", "text", "unknown"];
 
 function Pill({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
@@ -36,10 +37,10 @@ export function Board({ report, initialCompetitor = "all" }: { report: Report; i
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2">
-        <Pill on={competitor === "all"} onClick={() => setCompetitor("all")}>All competitors</Pill>
+        <Pill on={competitor === "all"} onClick={() => setCompetitor("all")}>{report.competitors.some((c) => c.keyword) ? "Everything" : "All competitors"}</Pill>
         {report.competitors.map((c) => (
           <Pill key={c.id} on={competitor === c.id} onClick={() => setCompetitor(c.id)}>
-            {c.name}
+            {c.keyword ? `Keyword: ${c.name}` : c.name}
           </Pill>
         ))}
       </div>
@@ -50,7 +51,7 @@ export function Board({ report, initialCompetitor = "all" }: { report: Report; i
         <div className="grid gap-3 md:grid-cols-3">
           {report.summaries.map((s) => (
             <button key={s.competitorId} type="button" onClick={() => setCompetitor(s.competitorId)} className="rounded-panel border border-line bg-panel p-4 text-left hover:border-line-strong">
-              <div className="text-14 font-semibold">{names.get(s.competitorId)}</div>
+              <div className="text-14 font-semibold">{report.competitors.find((c) => c.id === s.competitorId)?.keyword ? `Keyword: ${names.get(s.competitorId)}` : names.get(s.competitorId)}</div>
               <div className="mt-1 text-13 text-mute">
                 <span className="num">{s.adCount}</span> ads, <span className="num">{s.activeCount}</span> active
               </div>
@@ -63,9 +64,9 @@ export function Board({ report, initialCompetitor = "all" }: { report: Report; i
 
       <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
         <Pill on={platform === "all"} onClick={() => setPlatform("all")}>Every platform</Pill>
-        {PLATFORMS.map((p) => (
+        {PLATFORMS.filter((p) => CORE.includes(p) || report.ads.some((a) => a.platform === p)).map((p) => (
           <Pill key={p} on={platform === p} onClick={() => setPlatform(p)}>
-            {p}
+            {PLATFORM_LABEL[p]}
           </Pill>
         ))}
         <span className="mx-1 h-4 w-px bg-line" />

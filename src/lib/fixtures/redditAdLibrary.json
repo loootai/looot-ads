@@ -1,0 +1,24 @@
+{
+  "_note": "Invented sample. The catalog item searchapi-io-reddit-ad-library gives no response fields, so this follows the usual SearchApi ad library shape: an ads list with an advertiser object. Unverified until a real response is recorded.",
+  "search_parameters": { "engine": "reddit_ad_library", "q": "crm software" },
+  "ads": [
+    {
+      "id": "t3_example1",
+      "advertiser": { "name": "Fabrikam Example" },
+      "headline": "A CRM your team will actually open",
+      "text": "Set up in an afternoon. No per-seat surprise at renewal.",
+      "call_to_action": "Learn more",
+      "post_type": "image",
+      "image_url": "https://cdn.example/r1.jpg",
+      "link": "https://fabrikam.example/crm",
+      "start_date": "2026-09-14"
+    },
+    {
+      "id": "t3_example2",
+      "advertiser_name": "Adventure Works Example",
+      "title": "Stop pasting leads into a sheet",
+      "text": "Capture, route and follow up in one place.",
+      "post_type": "text"
+    }
+  ]
+}

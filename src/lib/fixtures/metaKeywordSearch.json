@@ -1,0 +1,31 @@
+{
+  "_note": "Invented sample shaped like the catalog description of scrapecreators-facebook-adlibrary-search-ads-get (ad_archive_id, page_name, is_active, publisher_platform, snapshot with body, images, videos, cta_text). Not a recorded response.",
+  "searchResults": [
+    {
+      "ad_archive_id": "900000000001",
+      "page_name": "Northwind Example Co",
+      "is_active": true,
+      "publisher_platform": ["FACEBOOK", "INSTAGRAM"],
+      "start_date": 1788220800,
+      "snapshot": {
+        "title": "Close the books in 3 days",
+        "body": { "text": "Month-end close without the spreadsheet chase. Free for 14 days." },
+        "cta_text": "Sign Up",
+        "link_url": "https://northwind.example/close",
+        "images": [{ "original_image_url": "https://cdn.example/nw1.jpg" }]
+      }
+    },
+    {
+      "ad_archive_id": "900000000002",
+      "page_name": "Contoso Example",
+      "is_active": false,
+      "start_date": 1785542400,
+      "end_date": 1787356800,
+      "snapshot": {
+        "body": { "text": "Switch and save 20%." },
+        "cta_text": "Learn More",
+        "videos": [{ "video_preview_image_url": "https://cdn.example/c2.jpg", "video_sd_url": "https://cdn.example/c2.mp4" }]
+      }
+    }
+  ]
+}

@@ -4,9 +4,13 @@
 
 [![License](https://img.shields.io/github/license/loootai/looot-ads)](LICENSE) [![Release](https://img.shields.io/github/v/release/loootai/looot-ads)](https://github.com/loootai/looot-ads/releases) [![Docs](https://img.shields.io/badge/docs-docs.looot.ai-12A06A)](https://docs.looot.ai)
 
-An open-source alternative to Foreplay, the competitor ad library and swipe-file tool. Foreplay starts at $49 a month billed annually ($59 monthly), read on its public pricing page on 2026-10-10. This repo pulls the same kind of data on demand through one looot key and charges per call. A pull of five competitors across four platforms is about $0.11 at list prices.
+An open-source alternative to Foreplay, the competitor ad library and swipe-file tool. Foreplay starts at $49 a month billed annually ($59 monthly), read on its public pricing page on 2026-10-10. This repo pulls the same kind of data on demand through one looot key and charges per call. A pull of five competitors across four platforms is about $0.05 at list prices, and one keyword across five platforms is about $0.011.
 
-Name competitors by domain or by name. looot-ads reads their ads from the Meta, Google Ads Transparency, LinkedIn and TikTok ad libraries and shows a board of creatives with the copy, first seen date, running time, platform and landing page. For each competitor it adds a summary of the angles and offers in their copy.
+Name competitors by domain or by name. looot-ads reads their ads from the Meta, Google Ads Transparency, LinkedIn and TikTok ad libraries, and from X when you give a handle. It shows a board of creatives with the copy, first seen date, running time, platform and landing page, and adds a summary of the angles and offers in each competitor's copy.
+
+Or give it a keyword instead of a name. Discovery mode searches Meta, LinkedIn, TikTok, Reddit and the TikTok Creative Center top ads for a topic such as `crm software` and shows ads from brands you never named, with the advertiser on each card. That is the Foreplay-style discovery library, built from public ad libraries.
+
+> **Catalog change.** The Adyntel endpoints that v0.1.4 and older used are no longer in the public looot catalog, so a pull with a live price check would have refused every Meta, Google and LinkedIn call for a domain. v0.1.5 reads Meta and LinkedIn by company name and Google by domain through endpoints that are listed today. A pull is also cheaper (see [Spending](#spending)).
 
 > **Security notice.** Versions 0.1.3 and older had no admin sign-in. Anyone who could reach a deployed web UI could read the saved pull, and could start paid looot runs on your token with a spend cap they chose. If you run v0.1.3 or older on a reachable host, upgrade to v0.1.4 and set `ADS_ADMIN_PASSWORD`. See [Securing a deployment](#securing-a-deployment).
 
@@ -14,7 +18,7 @@ Name competitors by domain or by name. looot-ads reads their ads from the Meta, 
 
 ![One competitor, dark theme](docs/screenshots/competitor-dark.png)
 
-The demo data is invented. The brands (Brightloop, Pelican Pay, Quillbase) do not exist, their domains end in `.example`, and every thumbnail is a generated placeholder labelled as one.
+The demo data is invented. The brands (Brightloop, Pelican Pay, Quillbase) and the advertisers found by the demo keyword (Ledgerly, Tallybird, Penwise) do not exist, their domains end in `.example`, and every thumbnail is a generated placeholder labelled as one.
 
 ## What you need
 
@@ -37,7 +41,7 @@ npm install --ignore-scripts
 npm run demo
 ```
 
-The web UI opens at http://localhost:3220 (`next dev -p 3220`) with invented brands. `/new` shows the quote page. In demo mode the run button makes no looot call. If port 3220 is busy, run `NEXT_PUBLIC_DEMO=1 npx next dev -p 3221`. For the same data as files, run `npm run ads -- --demo --out out`, which writes `out/ads.json`, `out/ads.csv` and `out/brief.md` and prints `Demo report written to out. 20 invented ads, no looot call.`
+The web UI opens at http://localhost:3220 (`next dev -p 3220`) with invented brands. `/new` shows the quote page. In demo mode the run button makes no looot call. If port 3220 is busy, run `NEXT_PUBLIC_DEMO=1 npx next dev -p 3221`. For the same data as files, run `npm run ads -- --demo --out out`, which writes `out/ads.json`, `out/ads.csv` and `out/brief.md` and prints `Demo report written to out. 28 invented ads, no looot call.`
 
 ## Run it with your own data
 
@@ -62,23 +66,39 @@ set -a; source .env.local; set +a
 
 Put your competitors in a CSV with a `name` and a `domain` column, one per line. `competitors.example.csv` in this repo has five invented ones (domains end in `.example`). A plain list of names or domains also works, or pass `--competitors "acme.com,Globex"`.
 
-Price first. A dry run needs no token and makes no call. It uses the list prices dated 2026-10-10. This is the real output of `npm run ads -- --file competitors.example.csv --dry-run`:
+Price first. A dry run needs no token and makes no call. It uses the list prices dated 2026-10-11. This is the real output of `npm run ads -- --file competitors.example.csv --dry-run`:
 
 ```text
 Plan
 
-  Brightloop             Meta      adyntel-facebook                                     $0.00642
-  Brightloop             Google    adyntel-google                                       $0.00642
-  Brightloop             LinkedIn  adyntel-linkedin                                     $0.00642
-  Brightloop             TikTok    scrapecreators-tiktok-ad-library-search              $0.00188
+  Brightloop             Meta           scrapecreators-facebook-adlibrary-company-ads-get    $0.00188
+  Brightloop             Google         searchapi-io-google-ads-transparency-center          $0.0040
+  Brightloop             LinkedIn       scrapecreators-linkedin-ads-search                   $0.00188
+  Brightloop             TikTok         scrapecreators-tiktok-ad-library-search              $0.00188
   (the same four lines for Pelican Pay, Quillbase, Northfield and Halcyon)
 
-  20 calls, $0.1057 at list prices dated 2026-10-10. Spend cap $1.00.
+  20 calls, $0.0482 at list prices dated 2026-10-11. Spend cap $1.00.
 
 Dry run: no looot call was made and nothing was written.
 ```
 
-A name without a domain skips Google. `npm run ads -- --competitors "acme.com,Globex" --dry-run` prints `7 calls, $0.02678` and a line `Globex  Google  skipped: Google Ads Transparency Center needs a domain for Globex; add one to include it.`
+A name without a domain skips Google. `npm run ads -- --competitors "acme.com,Globex" --dry-run` prints `7 calls, $0.01528` and a line `Globex  Google  skipped: Google Ads Transparency Center needs a domain for Globex; add one to include it.`
+
+Discovery by keyword. `npm run ads -- --keywords "crm software" --dry-run` prints:
+
+```text
+Plan
+
+  crm software           Meta           scrapecreators-facebook-adlibrary-search-ads-get     $0.00188
+  crm software           LinkedIn       scrapecreators-linkedin-ads-search                   $0.00188
+  crm software           TikTok         scrapecreators-tiktok-ad-library-search             $0.00188
+  crm software           Reddit         searchapi-io-reddit-ad-library                       $0.0040
+  crm software           TikTok top ads tikhub-api-tiktok-ads-search-ads                     $0.0010
+
+  5 calls, $0.01064 at list prices dated 2026-10-11. Spend cap $1.00.
+```
+
+Keywords and competitors can share one run (`--keywords` plus `--competitors`, or a `kw: crm software` line in the file). Each row uses its own default platforms. An X handle goes after the name, `"acme.com @acme"`, and adds one X call of up to 20 results (`--platforms` with `x` also asks for it).
 
 Then the real pull, with a cap near the quoted total (the example domains are invented, so use your own competitors):
 
@@ -86,30 +106,40 @@ Then the real pull, with a cap near the quoted total (the example domains are in
 npm run ads -- --file competitors.csv --max-spend 0.25 --out out
 ```
 
-Options: `--platforms meta,google,linkedin,tiktok`, `--max-spend <usd>` (default 1.00), `--out <dir>` (default `out`), `--fresh <tag>` to pull again, `--demo` to write the demo report. Before it runs, the CLI reads live prices from the catalog and prints the plan again. Results go to `out/ads.json`, `out/ads.csv` and `out/brief.md`. `ads.json` lists every call under `runs`, each with its `runId`. Exit code 0 is done, 1 means a source failed or is pending, 2 is bad usage.
+Options: `--keywords <list>`, `--platforms meta,google,linkedin,tiktok,reddit,x,tiktoktop` (default: the original four per competitor, plus X when a handle is given, and the five keyword platforms per keyword), `--max-spend <usd>` (default 1.00), `--out <dir>` (default `out`), `--fresh <tag>` to pull again, `--demo` to write the demo report. Before it runs, the CLI reads live prices from the catalog and prints the plan again. Results go to `out/ads.json`, `out/ads.csv` and `out/brief.md`. `ads.json` lists every call under `runs`, each with its `runId`. Exit code 0 is done, 1 means a source failed or is pending, 2 is bad usage.
 
-Web UI on the same engine. Set `ADS_ADMIN_PASSWORD` in `.env.local`, run `npm run dev`, open http://localhost:3000/new and sign in. Paste competitors, press "Show the price", then "Run for $0.11". The server signs each quote. The run button works only with a quote the server signed for your session and for those competitors and platforms, and it expires after 10 minutes. If the live price rose above the quote, the server refuses with a 409 and asks you to quote again. The cap is `ADS_SPEND_CAP_USD`, not a field in the page. The last pull is saved to `.looot-data/latest.json` on your machine.
+Web UI on the same engine. Set `ADS_ADMIN_PASSWORD` in `.env.local`, run `npm run dev`, open http://localhost:3000/new and sign in. Paste competitors (or switch to "Discover by keyword" and paste topics), press "Show the price", then "Run for $0.05". The price table names the platform, the provider, the endpoint and the price of each call. The server signs each quote. The run button works only with a quote the server signed for your session and for those competitors and platforms, and it expires after 10 minutes. If the live price rose above the quote, the server refuses with a 409 and asks you to quote again. The cap is `ADS_SPEND_CAP_USD`, not a field in the page. The last pull is saved to `.looot-data/latest.json` on your machine.
 
 ![New pull page](docs/screenshots/new-light.png)
 
 ## Spending
 
-looot shows the price before each paid action, and so does this repo. The CLI prints the plan first and the web UI shows a table and a total before the run button works. The spend cap is `--max-spend` in the CLI, default $1.00, and `ADS_SPEND_CAP_USD` for the web UI (the page shows it and cannot change it). The web UI allows 6 paid runs per session per hour. A pull of five competitors across four platforms is about $0.11 at list prices.
+looot shows the price before each paid action, and so does this repo. The CLI prints the plan first and the web UI shows a table and a total before the run button works. The spend cap is `--max-spend` in the CLI, default $1.00, and `ADS_SPEND_CAP_USD` for the web UI (the page shows it and cannot change it). The web UI allows 6 paid runs per session per hour. A pull of five competitors across four platforms is about $0.05 at list prices. One keyword across five platforms is about $0.011.
 
-Prices are the per-call list prices in the public looot catalog on 2026-10-10. The CLI reads live prices before running and uses these only for `--dry-run` or when the catalog cannot be read.
+Prices are the list prices in the public looot catalog on 2026-10-11. The CLI reads live prices before running and uses these only for `--dry-run` or when the catalog cannot be read.
 
-| Platform | Needs | looot job | Endpoint | Price per call |
-| --- | --- | --- | --- | --- |
-| Meta | domain | `ads.meta.search` | `adyntel-facebook` | $0.00642 |
-| Meta | name | `ads.meta.search` | `scrapecreators-facebook-adlibrary-company-ads-get` | $0.00188 |
-| Google | domain | `ads.google.advertiser.ads` | `adyntel-google` | $0.00642 |
-| LinkedIn | domain | `ads.linkedin.search` | `adyntel-linkedin` | $0.00642 |
-| LinkedIn | name | `ads.linkedin.search` | `scrapecreators-linkedin-ads-search` | $0.00188 |
-| TikTok | name | `tiktok.ad-library.search` | `scrapecreators-tiktok-ad-library-search` | $0.00188 |
+| Platform | Needs | looot job | Provider | Endpoint | Price |
+| --- | --- | --- | --- | --- | --- |
+| Meta | name | `ads.meta.search` | Scrape Creators | `scrapecreators-facebook-adlibrary-company-ads-get` | $0.00188 per call |
+| Meta | keyword | `ads.meta.search` | Scrape Creators | `scrapecreators-facebook-adlibrary-search-ads-get` | $0.00188 per call |
+| Google | domain | `search.google-ads-transparency-center` | SearchApi | `searchapi-io-google-ads-transparency-center` | $0.004 per call |
+| LinkedIn | name | `ads.linkedin.search` | Scrape Creators | `scrapecreators-linkedin-ads-search` | $0.00188 per call |
+| LinkedIn | keyword | `ads.linkedin.search` | Scrape Creators | `scrapecreators-linkedin-ads-search` | $0.00188 per call |
+| TikTok | name | `tiktok.ad-library.search` | Scrape Creators | `scrapecreators-tiktok-ad-library-search` | $0.00188 per call |
+| TikTok | keyword | `tiktok.ad-library.search` | Scrape Creators | `scrapecreators-tiktok-ad-library-search` | $0.00188 per call |
+| Reddit | keyword | `search.reddit-ad-library` | SearchApi | `searchapi-io-reddit-ad-library` | $0.004 per call |
+| TikTok top ads (Creative Center) | keyword | `api.tiktok.ads.search-ads` | TikHub | `tikhub-api-tiktok-ads-search-ads` | $0.001 per call |
+| X (EU and EEA ads) | handle | `api.twitter.ads.search` | Anysite | `anysite-api-twitter-ads-search` | $0.00036 per result, 20 results asked, $0.0072 per call |
 
-A competitor with a domain on all four platforms costs $0.0211. Five competitors cost $0.1057, as the dry run above shows.
+The X endpoint is priced per result. The code asks for exactly 20, multiplies the live unit price by 20 for the quote, and never asks for more. The X ads repository only covers ads shown in the EU and EEA.
 
-Other ad-library endpoints exist in the catalog (SearchApi for Meta, LinkedIn, TikTok and Google, HarvestAPI and Anysite for LinkedIn, Anysite and TikHub for TikTok). Swap one in by editing `src/lib/sources.ts`. Each endpoint is pinned with no provider fallback, so the quoted price is the price.
+Typical cost, with the arithmetic:
+
+- One competitor with a domain on Meta, Google, LinkedIn and TikTok: 3 x $0.00188 + $0.004 = $0.00964. Five competitors: $0.0482, as the dry run above shows. Before v0.1.5 the README said $0.0211 and $0.1057, priced on Adyntel endpoints that the catalog no longer lists.
+- Add an X handle: $0.00964 + $0.0072 = $0.01684.
+- One keyword on Meta, LinkedIn, TikTok, Reddit and TikTok top ads: 3 x $0.00188 + $0.004 + $0.001 = $0.01064.
+
+Other ad-library endpoints exist in the catalog (SearchApi for Meta, LinkedIn and TikTok, HarvestAPI and Anysite for LinkedIn, Anysite and TikHub for TikTok, DataForSEO for Google). Swap one in by editing `src/lib/sources.ts`. Each endpoint is pinned with no provider fallback, so the quoted price is the price.
 
 Rules the code enforces.
 
@@ -184,8 +214,15 @@ Angles and offers come from keyword and pattern rules in `config/angles.json`, n
 
 - It does not store creatives. It keeps the thumbnail and video links the provider returns, plus short text. The board loads thumbnails from the provider's link. Links can expire.
 - It makes one call per competitor and platform, which returns the first page the provider gives. It does not page through every ad of a large advertiser.
-- Foreplay also offers a discovery library of ads from brands you did not name, creative analytics on your own ad account and AI briefs. None of that is here. looot has no source for those.
-- Google needs a domain. A name alone skips Google and says so in the report.
+- Foreplay also offers creative analytics on your own ad account, AI briefs and a hosted swipe file. None of that is here. The catalog searches that found no provider are listed below.
+- Google needs a domain. A name alone skips Google and says so in the report. Google has no keyword search in the catalog: the Google keyword endpoint (`dataforseo-google-ads-search-advanced`, job `ads.google.search`) takes a target domain or advertiser ids, not a keyword.
+- X needs the advertiser's handle and has no keyword search. It shows only ads delivered in the EU and EEA.
+- Reddit and TikTok top ads are keyword searches. A named competitor is not sent to them, because their search is free text and would return unrelated brands.
+- A keyword search is a free-text search of each library. It returns whatever the library ranks first, one page per call, so treat the advertisers as leads, not as a complete list.
+
+### Searched in the catalog and not found
+
+On 2026-10-11 these searches of the public catalog (`/v1/public-catalog?q=`) found no provider for the dropped features: "ads analytics account", "ad creative", "swipe file", "ad spy", "top ads", "competitor ads". The only account-level analytics endpoints returned were Google Analytics admin calls and Douyin or WeChat account lists, which are not ad accounts. Creative storage and AI briefs are not data endpoints. Page-id lookups for Meta (`searchapi-io-meta-ad-library-page-search`, `scrapecreators-facebook-adlibrary-search-companies`) exist but are not needed, because the company-ads endpoint takes a company name.
 
 ## Troubleshooting
 
@@ -207,7 +244,7 @@ How to file an issue. Open an issue at https://github.com/loootai/looot-ads/issu
 
 ## Status
 
-No paid looot run was made while building this. The code that turns a provider response into ads is built from the endpoint descriptions in the catalog, from the field names those providers document, and from fixtures written to match. It reads many alias names for each field and skips what it cannot read, but the first real pull may show a field it misses. If a provider returns ads that look empty, open an issue with the raw response (see Troubleshooting), and add the alias in `src/lib/normalize.ts`. The unit tests mock HTTP.
+No paid looot run was made while building this. The code that turns a provider response into ads is built from the endpoint descriptions in the catalog, from the field names those providers document, and from fixtures written to match (`src/lib/fixtures/`, all invented). The catalog lists no response fields for the endpoints added in v0.1.5, so those parsers (Meta keyword search, Google Ads Transparency, Reddit, X and TikTok top ads) are unverified, tolerant guesses, the same as the original four. It reads many alias names for each field and skips what it cannot read, but the first real pull may show a field it misses. If a provider returns ads that look empty, open an issue with the raw response (see Troubleshooting), and add the alias in `src/lib/normalize.ts`. The unit tests mock HTTP.
 
 ## Develop
 

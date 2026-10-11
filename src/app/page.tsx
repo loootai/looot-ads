@@ -3,6 +3,7 @@ import { Board } from "@/components/Board";
 import { requireAdminPage } from "@/lib/auth/guard";
 import { usd } from "@/lib/money";
 import { loadReport } from "@/lib/store";
+import { PLATFORM_LABEL } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ export default async function BoardPage({ searchParams }: { searchParams: Promis
           {pending > 0 && <p>{pending} source(s) still pending. They are not failed; pull again with the same names to read them, you are not charged twice.</p>}
           {failed.map((r, i) => (
             <p key={i}>
-              {r.competitorId} on {r.platform}: {r.state}. {r.message}
+              {r.competitorId} on {PLATFORM_LABEL[r.platform]}: {r.state}. {r.message}
             </p>
           ))}
         </div>

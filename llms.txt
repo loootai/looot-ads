@@ -1,11 +1,12 @@
 # looot-ads
 
-> Open-source competitor ad board. Input: competitor domains or names. It pulls their ads from the Meta, Google, LinkedIn and TikTok ad libraries through looot and writes ads.json, ads.csv and brief.md, with the price shown before any call and a hard spend cap.
+> Open-source competitor ad board. Input: competitor domains or names, or keywords. It pulls their ads from the Meta, Google, LinkedIn and TikTok ad libraries (plus Reddit, TikTok top ads and X) through looot and writes ads.json, ads.csv and brief.md, with the price shown before any call and a hard spend cap.
 
 ## Run it
 
 - Install: `npm install --ignore-scripts` (pin-guard or your own scan first)
 - Price only, no call: `npm run ads -- --competitors "acme.com,Globex" --dry-run`
+- Discover ads by keyword, price only: `npm run ads -- --keywords "crm software" --dry-run`
 - Real pull: `LOOOT_TOKEN=... npm run ads -- --competitors "acme.com,Globex" --max-spend 0.50 --out out`
 - Look around with invented data: `npm run demo` (web UI on port 3220) or `npm run ads -- --demo`
 

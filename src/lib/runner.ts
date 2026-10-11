@@ -3,7 +3,8 @@ import { summarize } from "./analyze";
 import { LoootError, TERMINAL_STATUSES, type LoootRunner } from "./looot";
 import { toMicros } from "./money";
 import { parseAds } from "./normalize";
-import { SOURCE_DEFS, isPlanned, planCall, type PlannedCall, type SkippedCall, type SourceDef } from "./sources";
+import { today as clockToday } from "./clock";
+import { SOURCE_DEFS, defaultPlatforms, isPlanned, planCall, type PlannedCall, type SkippedCall, type SourceDef } from "./sources";
 import { SpendGuard, type PriceMap } from "./spend";
 import type { Ad, Competitor, Platform, Report, SourceRun } from "./types";
 
@@ -20,13 +21,16 @@ export interface Plan {
   withinCap: boolean;
 }
 
-/** Works out which calls a run makes and what they cost at the given prices. Makes no call. */
-export function buildPlan(competitors: Competitor[], platforms: Platform[], prices: PriceMap, capMicros: number, defs: SourceDef[] = SOURCE_DEFS): Plan {
+/**
+ * Works out which calls a run makes and what they cost at the given prices. Makes no call.
+ * With no platforms given, each row uses its own defaults (named competitors: the original four, keywords: the five keyword platforms).
+ */
+export function buildPlan(competitors: Competitor[], platforms: Platform[] | undefined, prices: PriceMap, capMicros: number, defs: SourceDef[] = SOURCE_DEFS, today: string = clockToday()): Plan {
   const lines: PlanLine[] = [];
   const skipped: SkippedCall[] = [];
   for (const c of competitors) {
-    for (const p of platforms) {
-      const call = planCall(c, p, defs);
+    for (const p of platforms ?? defaultPlatforms(c)) {
+      const call = planCall(c, p, defs, today);
       if (isPlanned(call)) lines.push({ ...call, priceMicros: prices[call.endpointId] ?? 0 });
       else skipped.push(call);
     }

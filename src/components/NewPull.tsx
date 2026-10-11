@@ -5,9 +5,21 @@ import { useState } from "react";
 import { usdPrecise } from "@/lib/money";
 import { adminFetch } from "./adminFetch";
 import type { Plan } from "@/lib/runner";
-import type { Competitor, Platform } from "@/lib/types";
+import { PLATFORM_LABEL, type Competitor, type Platform } from "@/lib/types";
 
-const ALL: Platform[] = ["meta", "google", "linkedin", "tiktok"];
+type Mode = "competitors" | "keywords";
+
+/** Platforms offered per mode, and the ones ticked at first. Keyword mode needs no competitor name. */
+const MODE_PLATFORMS: Record<Mode, { all: Platform[]; on: Platform[] }> = {
+  competitors: { all: ["meta", "google", "linkedin", "tiktok", "x"], on: ["meta", "google", "linkedin", "tiktok"] },
+  keywords: { all: ["meta", "linkedin", "tiktok", "reddit", "tiktoktop"], on: ["meta", "linkedin", "tiktok", "reddit", "tiktoktop"] },
+};
+
+/** Keyword mode sends each topic as a "kw:" line, so the server tells it from a competitor. */
+function toPullText(mode: Mode, text: string): string {
+  if (mode === "competitors") return text;
+  return text.split(/[\n,]/).map((k) => k.trim()).filter(Boolean).map((k) => `kw: ${k}`).join("\n");
+}
 
 interface Quote {
   plan: Plan;
@@ -22,7 +34,8 @@ interface Quote {
 export function NewPull({ demo, hasToken, capMicros }: { demo: boolean; hasToken: boolean; capMicros: number }) {
   const router = useRouter();
   const [text, setText] = useState("");
-  const [platforms, setPlatforms] = useState<Platform[]>(ALL);
+  const [mode, setMode] = useState<Mode>("competitors");
+  const [platforms, setPlatforms] = useState<Platform[]>(MODE_PLATFORMS.competitors.on);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -30,7 +43,7 @@ export function NewPull({ demo, hasToken, capMicros }: { demo: boolean; hasToken
   async function getQuote() {
     setBusy(true);
     setMessage(null);
-    const res = await adminFetch("/api/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ competitors: text, platforms }) });
+    const res = await adminFetch("/api/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ competitors: toPullText(mode, text), platforms }) });
     const json = await res.json();
     setBusy(false);
     if (!res.ok) {
@@ -44,11 +57,18 @@ export function NewPull({ demo, hasToken, capMicros }: { demo: boolean; hasToken
     if (!quote) return;
     setBusy(true);
     setMessage("Running. This can take a minute per source.");
-    const res = await adminFetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ competitors: text, platforms, quoteToken: quote.quoteToken }) });
+    const res = await adminFetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ competitors: toPullText(mode, text), platforms, quoteToken: quote.quoteToken }) });
     const json = await res.json();
     setBusy(false);
     if (!res.ok) return setMessage(json.error ?? "The run failed.");
     router.push("/");
+  }
+
+  function switchMode(next: Mode) {
+    setMode(next);
+    setPlatforms(MODE_PLATFORMS[next].on);
+    setQuote(null);
+    setMessage(null);
   }
 
   const canRun = !demo && hasToken && quote !== null && quote.quoteToken !== null && quote.plan.lines.length > 0 && !busy;
@@ -57,14 +77,25 @@ export function NewPull({ demo, hasToken, capMicros }: { demo: boolean; hasToken
     <div className="mx-auto max-w-2xl space-y-5">
       <div>
         <h1 className="text-20 font-semibold">New pull</h1>
-        <p className="mt-1 text-13 text-mute">One competitor per line or comma separated. A domain unlocks Google Ads and the Adyntel lookups; a bare name works for Meta, LinkedIn and TikTok.</p>
+        <p className="mt-1 text-13 text-mute">
+          {mode === "competitors"
+            ? "One competitor per line or comma separated. Google Ads needs a domain; Meta, LinkedIn and TikTok search by name. Add @handle after a name to include X."
+            : "One topic per line or comma separated. Finds ads from brands you did not name, on Meta, LinkedIn, TikTok, Reddit and TikTok top ads. Google and X have no keyword search."}
+        </p>
       </div>
-      <textarea value={text} onChange={(e) => { setText(e.target.value); setQuote(null); }} rows={5} placeholder={"acme.com\nGlobex\ninitech.io"} className="w-full rounded-panel border border-line bg-panel p-3 text-13 outline-none focus:border-emerald" />
+      <div role="group" aria-label="What to look up" className="flex gap-2">
+        {(["competitors", "keywords"] as Mode[]).map((m) => (
+          <button key={m} type="button" aria-pressed={mode === m} onClick={() => switchMode(m)} className={`rounded-control border px-3 py-1 text-13 ${mode === m ? "border-brand bg-brand text-brand-ink" : "border-line bg-panel text-mute hover:text-ink"}`}>
+            {m === "competitors" ? "Named competitors" : "Discover by keyword"}
+          </button>
+        ))}
+      </div>
+      <textarea value={text} onChange={(e) => { setText(e.target.value); setQuote(null); }} rows={5} placeholder={mode === "competitors" ? "acme.com\nGlobex\ninitech.io @initech" : "crm software\ninvoice automation"} className="w-full rounded-panel border border-line bg-panel p-3 text-13 outline-none focus:border-emerald" />
       <div className="flex flex-wrap items-center gap-2">
-        {ALL.map((p) => (
+        {MODE_PLATFORMS[mode].all.map((p) => (
           <label key={p} className="flex items-center gap-1.5 rounded-control border border-line bg-panel px-2.5 py-1 text-12">
             <input type="checkbox" checked={platforms.includes(p)} onChange={() => { setQuote(null); setPlatforms(platforms.includes(p) ? platforms.filter((x) => x !== p) : [...platforms, p]); }} />
-            {p}
+            {PLATFORM_LABEL[p]}
           </label>
         ))}
         <label className="ml-auto flex items-center gap-2 text-12 text-mute">
@@ -80,8 +111,9 @@ export function NewPull({ demo, hasToken, capMicros }: { demo: boolean; hasToken
           <table className="w-full text-left text-13">
             <thead>
               <tr className="border-b border-line text-12 text-faint">
-                <th className="p-3 font-medium">Competitor</th>
+                <th className="p-3 font-medium">{mode === "competitors" ? "Competitor" : "Keyword"}</th>
                 <th className="p-3 font-medium">Platform</th>
+                <th className="p-3 font-medium">Provider</th>
                 <th className="p-3 font-medium">Endpoint</th>
                 <th className="p-3 text-right font-medium">Price</th>
               </tr>
@@ -90,16 +122,17 @@ export function NewPull({ demo, hasToken, capMicros }: { demo: boolean; hasToken
               {quote.plan.lines.map((l, i) => (
                 <tr key={i} className="border-b border-line last:border-0">
                   <td className="p-3">{quote.competitors.find((c) => c.id === l.competitorId)?.name}</td>
-                  <td className="p-3">{l.platform}</td>
-                  <td className="num p-3 text-12 text-mute">{l.endpointId}</td>
+                  <td className="p-3">{PLATFORM_LABEL[l.platform]}</td>
+                  <td className="p-3 text-12">{l.provider}</td>
+                  <td className="num p-3 text-12 text-mute">{l.endpointId}{l.resultCount ? ` (up to ${l.resultCount} results)` : ""}</td>
                   <td className="num p-3 text-right">{usdPrecise(l.priceMicros)}</td>
                 </tr>
               ))}
               {quote.plan.skipped.map((s, i) => (
                 <tr key={`s${i}`} className="border-b border-line text-mute last:border-0">
                   <td className="p-3">{quote.competitors.find((c) => c.id === s.competitorId)?.name}</td>
-                  <td className="p-3">{s.platform}</td>
-                  <td className="p-3 text-12" colSpan={2}>Skipped. {s.reason}</td>
+                  <td className="p-3">{PLATFORM_LABEL[s.platform]}</td>
+                  <td className="p-3 text-12" colSpan={3}>Skipped. {s.reason}</td>
                 </tr>
               ))}
             </tbody>

@@ -1,8 +1,6 @@
 import { usd, usdPrecise } from "./money";
-import type { Ad, Competitor, Report } from "./types";
+import { PLATFORM_LABEL, type Ad, type Competitor, type Report } from "./types";
 import type { Plan } from "./runner";
-
-const PLATFORM_NAMES = { meta: "Meta", google: "Google", linkedin: "LinkedIn", tiktok: "TikTok" } as const;
 
 function cell(v: unknown): string {
   const s = v === undefined || v === null ? "" : String(v);
@@ -12,8 +10,8 @@ function cell(v: unknown): string {
 /** One row per ad. Links only; no creative file is embedded. */
 export function adsToCsv(report: Report): string {
   const names = new Map(report.competitors.map((c) => [c.id, c.name]));
-  const head = ["competitor", "platform", "ad_id", "status", "format", "first_seen", "last_seen", "running_days", "headline", "body", "cta", "landing_url", "thumbnail_url", "library_url"];
-  const rows = report.ads.map((a: Ad) => [names.get(a.competitorId) ?? a.competitorId, a.platform, a.id, a.status, a.format, a.firstSeen, a.lastSeen, a.runningDays, a.headline, a.body, a.cta, a.landingUrl, a.thumbnailUrl, a.libraryUrl].map(cell).join(","));
+  const head = ["competitor", "platform", "advertiser", "ad_id", "status", "format", "first_seen", "last_seen", "running_days", "headline", "body", "cta", "landing_url", "thumbnail_url", "library_url"];
+  const rows = report.ads.map((a: Ad) => [names.get(a.competitorId) ?? a.competitorId, a.platform, a.advertiser, a.id, a.status, a.format, a.firstSeen, a.lastSeen, a.runningDays, a.headline, a.body, a.cta, a.landingUrl, a.thumbnailUrl, a.libraryUrl].map(cell).join(","));
   return [head.join(","), ...rows].join("\n") + "\n";
 }
 
@@ -21,8 +19,8 @@ export function adsToCsv(report: Report): string {
 export function renderPlan(plan: Plan, competitors: Competitor[], priceNote: string): string {
   const names = new Map(competitors.map((c) => [c.id, c.name]));
   const out = ["Plan", ""];
-  for (const l of plan.lines) out.push(`  ${(names.get(l.competitorId) ?? l.competitorId).padEnd(22)} ${PLATFORM_NAMES[l.platform].padEnd(9)} ${l.endpointId.padEnd(52)} ${usdPrecise(l.priceMicros)}`);
-  for (const s of plan.skipped) out.push(`  ${(names.get(s.competitorId) ?? s.competitorId).padEnd(22)} ${PLATFORM_NAMES[s.platform].padEnd(9)} skipped: ${s.reason}`);
+  for (const l of plan.lines) out.push(`  ${(names.get(l.competitorId) ?? l.competitorId).padEnd(22)} ${PLATFORM_LABEL[l.platform].padEnd(14)} ${l.endpointId.padEnd(52)} ${usdPrecise(l.priceMicros)}`);
+  for (const s of plan.skipped) out.push(`  ${(names.get(s.competitorId) ?? s.competitorId).padEnd(22)} ${PLATFORM_LABEL[s.platform].padEnd(14)} skipped: ${s.reason}`);
   out.push("", `  ${plan.lines.length} calls, ${usdPrecise(plan.totalMicros)} at ${priceNote}. Spend cap ${usdPrecise(plan.capMicros)}.`);
   if (!plan.withinCap) out.push(`  The plan is over the cap. Calls run in order until the cap stops them.`);
   return out.join("\n");

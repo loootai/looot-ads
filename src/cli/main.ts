@@ -14,10 +14,12 @@ import { PLATFORMS, type Platform } from "@/lib/types";
 
 export const HELP = `Usage: npm run ads -- --competitors "acme.com,Globex" [options]
        npm run ads -- --file competitors.csv [options]
+       npm run ads -- --keywords "crm software,invoice automation" [options]
 
-  --competitors <list>  Domains or names, comma separated. A domain unlocks Google and the cheaper-per-platform lookups.
-  --file <path>         One competitor per line, or a CSV with a name and a domain column.
-  --platforms <list>    meta,google,linkedin,tiktok. Default: all four.
+  --competitors <list>  Domains or names, comma separated. A domain unlocks Google. "acme.com @acme" adds an X handle.
+  --keywords <list>     Topics to discover ads for, comma separated. No competitor needed. Searches Meta, LinkedIn, TikTok, Reddit and TikTok top ads.
+  --file <path>         One competitor per line, or a CSV with a name and a domain column. A line "kw: crm software" is a keyword.
+  --platforms <list>    meta,google,linkedin,tiktok,reddit,x,tiktoktop. Default: the original four for a competitor, the five keyword platforms for a keyword.
   --max-spend <usd>     Hard cap for the run in dollars. Default: 1.00
   --out <dir>           Where ads.json, ads.csv and brief.md go. Default: out
   --dry-run             Print the calls and the list-price total. Make no looot call.
@@ -43,6 +45,7 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
       args: argv,
       options: {
         competitors: { type: "string" },
+        keywords: { type: "string" },
         file: { type: "string" },
         platforms: { type: "string" },
         "max-spend": { type: "string", default: "1.00" },
@@ -70,14 +73,15 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
   }
 
   const raw = args.file ? (deps.readFile ?? ((p: string) => readFileSync(p, "utf8")))(args.file) : (args.competitors ?? "");
-  const competitors = parseCompetitorList(args.file ? raw : raw.replace(/,/g, "\n"));
+  const kwLines = (args.keywords ?? "").split(",").map((k) => k.trim()).filter(Boolean).map((k) => `kw: ${k}`).join("\n");
+  const competitors = parseCompetitorList([args.file ? raw : raw.replace(/,/g, "\n"), kwLines].filter(Boolean).join("\n"));
   if (competitors.length === 0) {
-    deps.err(`Give at least one competitor with --competitors or --file.\n\n${HELP}`);
+    deps.err(`Give at least one competitor or keyword with --competitors, --keywords or --file.\n\n${HELP}`);
     return 2;
   }
 
-  const platforms = (args.platforms ? args.platforms.split(",").map((s) => s.trim().toLowerCase()) : PLATFORMS) as Platform[];
-  const bad = platforms.filter((p) => !PLATFORMS.includes(p));
+  const platforms = (args.platforms ? args.platforms.split(",").map((s) => s.trim().toLowerCase()) : undefined) as Platform[] | undefined;
+  const bad = (platforms ?? []).filter((p) => !PLATFORMS.includes(p));
   if (bad.length > 0) {
     deps.err(`Unknown platform: ${bad.join(", ")}. Use ${PLATFORMS.join(", ")}.`);
     return 2;

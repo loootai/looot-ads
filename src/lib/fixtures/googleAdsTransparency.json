@@ -1,0 +1,25 @@
+{
+  "_note": "Invented sample shaped like SearchApi's Google Ads Transparency Center answer as the catalog item searchapi-io-google-ads-transparency-center describes it: ad_creatives with format, target domain, show dates and advertiser details. The catalog lists no field names, so the field names are a guess and stay unverified until a real response is recorded.",
+  "search_parameters": { "engine": "google_ads_transparency_center", "domain": "northfield.example" },
+  "ad_creatives": [
+    {
+      "id": "CR00000000000000000001",
+      "advertiser": { "id": "AR00000000000000000001", "name": "Northfield Example Inc" },
+      "target_domain": "northfield.example",
+      "format": "text",
+      "first_shown": "2026-05-02",
+      "last_shown": "2026-10-09",
+      "link": "https://adstransparency.google.com/advertiser/AR00000000000000000001/creative/CR00000000000000000001"
+    },
+    {
+      "id": "CR00000000000000000002",
+      "advertiser": { "id": "AR00000000000000000001", "name": "Northfield Example Inc" },
+      "target_domain": "northfield.example",
+      "format": "image",
+      "image": "https://cdn.example/g2.png",
+      "first_shown": "2026-09-01",
+      "last_shown": "2026-09-20",
+      "link": "https://adstransparency.google.com/advertiser/AR00000000000000000001/creative/CR00000000000000000002"
+    }
+  ]
+}

@@ -25,7 +25,7 @@ export function SummaryPanel({ competitor, summary }: { competitor: Competitor; 
   return (
     <section className="rounded-panel border border-line bg-panel p-4">
       <div className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <h2 className="text-16 font-semibold">{competitor.name}</h2>
+        <h2 className="text-16 font-semibold">{competitor.keyword ? `Keyword: ${competitor.name}` : competitor.name}</h2>
         <p className="text-13 text-mute">
           <span className="num">{summary.adCount}</span> ads, <span className="num">{summary.activeCount}</span> active, median running time <span className="num">{summary.medianRunningDays ?? "unknown"}</span> days
         </p>

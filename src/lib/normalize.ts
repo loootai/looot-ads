@@ -5,7 +5,7 @@ type Obj = Record<string, unknown>;
 
 const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !Array.isArray(v);
 
-const LIST_KEYS = ["ads", "results", "data", "items", "ads_data", "advertisements", "creatives", "ad_list", "searchResults", "response"];
+const LIST_KEYS = ["ads", "results", "data", "items", "ads_data", "advertisements", "creatives", "ad_list", "searchResults", "response", "materials", "ad_creatives"];
 
 /**
  * Finds the list of ads in a provider response. The providers do not share one shape, so this looks at the
@@ -42,11 +42,30 @@ function pickStr(ad: Obj, keys: string[]): string | undefined {
 
 function scopes(ad: Obj): Obj[] {
   const out: Obj[] = [ad];
-  for (const k of ["snapshot", "creative", "content", "details", "ad", "advertiser"]) if (isObj(ad[k])) out.push(ad[k] as Obj);
+  for (const k of ["snapshot", "creative", "content", "details", "ad", "advertiser", "video_info"]) if (isObj(ad[k])) out.push(ad[k] as Obj);
   return out;
 }
 
-const httpUrl = (v: unknown): string | undefined => (typeof v === "string" && /^https?:\/\//i.test(v.trim()) ? v.trim() : undefined);
+const isHttp = (v: unknown): v is string => typeof v === "string" && /^https?:\/\//i.test(v.trim());
+
+/** An http(s) link from a string, or from the first link inside an object such as {"720p": "https://..."}. */
+const httpUrl = (v: unknown): string | undefined => {
+  if (isHttp(v)) return v.trim();
+  if (isObj(v)) return Object.values(v).find(isHttp)?.trim();
+  return undefined;
+};
+
+/** Who runs the ad: a page or brand name as text, or the name inside an advertiser object. */
+function pickAdvertiser(ad: Obj): string | undefined {
+  for (const scope of scopes(ad)) {
+    for (const k of ["page_name", "advertiser_name", "brand_name", "advertiser", "paid_for_by", "page", "byline"]) {
+      const v = scope[k];
+      if (typeof v === "string" && v.trim()) return v.trim();
+      if (isObj(v) && typeof v.name === "string" && v.name.trim()) return v.name.trim();
+    }
+  }
+  return undefined;
+}
 
 function pickUrl(ad: Obj, keys: string[]): string | undefined {
   for (const scope of scopes(ad)) {
@@ -68,7 +87,7 @@ function pickThumb(ad: Obj): string | undefined {
   for (const scope of scopes(ad)) {
     for (const list of ["images", "videos", "cards", "carousel", "media"]) {
       const arr = scope[list];
-      if (Array.isArray(arr)) for (const item of arr) if (isObj(item)) { const u = pickUrl(item, IMAGE_KEYS); if (u) return u; }
+      if (Array.isArray(arr)) for (const item of arr) if (isObj(item)) { const u = pickUrl(item, list === "media" || list === "images" ? [...IMAGE_KEYS, "url"] : IMAGE_KEYS); if (u) return u; }
     }
   }
   return undefined;
@@ -140,7 +159,7 @@ function daysBetween(a: string, b: string): number {
   return Math.max(0, Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000));
 }
 
-const LIBRARY_HOSTS = /facebook\.com\/ads\/library|adstransparency\.google|linkedin\.com\/ad-library|library\.tiktok\.com|ads\.tiktok\.com\/business\/creativecenter/i;
+const LIBRARY_HOSTS = /facebook\.com\/ads\/library|reddit\.com\/ads\/library|(?:x|twitter)\.com\/[^/]+\/status\/|adstransparency\.google|linkedin\.com\/ad-library|library\.tiktok\.com|ads\.tiktok\.com\/business\/creativecenter/i;
 
 /** Maps the ads in one provider response to Ad rows. Every field is optional on the provider side; a missing one stays undefined. */
 export function parseAds(result: unknown, ctx: { competitorId: string; platform: Platform; jobId: string; today: string }): Ad[] {
@@ -148,7 +167,7 @@ export function parseAds(result: unknown, ctx: { competitorId: string; platform:
   const seen = new Set<string>();
   for (const raw of findAdArray(result)) {
     const headline = pickStr(raw, ["title", "headline", "ad_title", "name", "link_title"]);
-    const body = pickStr(raw, ["body", "ad_text", "commentary", "primary_text", "message", "text", "description", "ad_creative_body", "caption"]);
+    const body = pickStr(raw, ["body", "ad_text", "commentary", "primary_text", "message", "text", "full_text", "tweet_text", "description", "ad_creative_body", "caption"]);
     const cta = pickStr(raw, ["cta_text", "cta", "call_to_action", "button_text", "cta_type"]);
     const thumbnailUrl = pickThumb(raw);
     const mediaUrl = pickMedia(raw);
@@ -157,10 +176,14 @@ export function parseAds(result: unknown, ctx: { competitorId: string; platform:
     const status = pickStatus(raw, lastSeenRaw, ctx.today);
     const lastSeen = lastSeenRaw ?? (status === "active" ? ctx.today : undefined);
     const runningDays = firstSeen && lastSeen ? daysBetween(firstSeen, lastSeen) : undefined;
-    const landingUrl = pickUrl(raw, ["link_url", "landing_page", "landing_page_url", "destination_url", "destination", "website", "cta_url", "click_url", "final_url", "link"]);
+    let landingUrl = pickUrl(raw, ["link_url", "landing_page", "landing_page_url", "destination_url", "destination", "website", "cta_url", "click_url", "final_url", "link"]);
     let libraryUrl = pickUrl(raw, ["ad_library_url", "library_url", "ad_url", "ad_link", "details_url", "url"]);
     if (libraryUrl && !LIBRARY_HOSTS.test(libraryUrl)) libraryUrl = undefined;
-    if (!headline && !body && !thumbnailUrl && !mediaUrl) continue;
+    if (landingUrl && LIBRARY_HOSTS.test(landingUrl)) {
+      libraryUrl ??= landingUrl;
+      landingUrl = undefined;
+    }
+    if (!headline && !body && !thumbnailUrl && !mediaUrl && !libraryUrl) continue;
     const providerId = pickStr(raw, ["ad_archive_id", "ad_id", "adId", "creative_id", "archive_id", "id", "material_id"]);
     const id = providerId ?? createHash("sha1").update(`${headline}|${body}|${thumbnailUrl}`).digest("hex").slice(0, 12);
     const key = `${ctx.platform}:${id}`;
@@ -170,6 +193,7 @@ export function parseAds(result: unknown, ctx: { competitorId: string; platform:
       id,
       competitorId: ctx.competitorId,
       platform: ctx.platform,
+      advertiser: pickAdvertiser(raw),
       headline,
       body,
       cta,

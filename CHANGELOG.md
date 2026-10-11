@@ -2,6 +2,25 @@
 
 Built from the GitHub release notes. Each version links to its release page.
 
+## 0.1.5 (2026-10-11)
+
+Ad discovery by keyword, three new sources, and a fix for a catalog change.
+
+What changed
+- Discovery by keyword. `--keywords "crm software"` (or a `kw:` line, or "Discover by keyword" in the web UI) searches Meta, LinkedIn, TikTok, Reddit and the TikTok Creative Center top ads, and shows ads from brands you did not name, with the advertiser on each card. One keyword on five platforms is $0.01064 at list prices.
+- Reddit Ad Library (`searchapi-io-reddit-ad-library`, $0.004 per call, job `search.reddit-ad-library`) and TikTok top ads (`tikhub-api-tiktok-ads-search-ads`, $0.001 per call, job `api.tiktok.ads.search-ads`), both by keyword.
+- X Ads Repository (`anysite-api-twitter-ads-search`, job `api.twitter.ads.search`) for a named competitor with a handle (`acme.com @acme`). Priced per result at $0.00036. The call asks for 20 results, so the quote is $0.0072.
+- The Adyntel endpoints the earlier versions used are gone from the public catalog, so a live-priced pull would have refused every Meta, Google and LinkedIn call for a domain. Meta and LinkedIn now search by company name. Google uses `searchapi-io-google-ads-transparency-center` ($0.004) by domain.
+- A competitor with a domain on four platforms now costs $0.00964 (was listed as $0.0211). Five competitors cost $0.0482 (was $0.1057).
+- No new routes. The route map is unchanged and its tests stay green.
+
+For upgraders
+- Meta and LinkedIn now look up by company name. Give a name, not only a domain, when the domain stem is not the brand name.
+- The `--platforms` default is unchanged for competitors. The new platforms are `reddit`, `x` and `tiktoktop`.
+- The response parsers for the new sources are built from endpoint descriptions and are unverified, like the original four. See Status in the README.
+
+[Release page](https://github.com/loootai/looot-ads/releases/tag/v0.1.5)
+
 ## 0.1.4 (2026-10-11)
 
 Security fix. Versions 0.1.3 and older had no admin authentication. Anyone who could reach a running web UI could read the saved pull and start paid looot runs on your token, with a spend cap they chose. If you run one of those versions on a host others can reach, upgrade to v0.1.4 and set ADS_ADMIN_PASSWORD (12 characters or more).

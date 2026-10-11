@@ -1,0 +1,20 @@
+{
+  "_note": "Invented sample. The catalog item anysite-api-twitter-ads-search says it searches the X Ads Repository for promoted tweets by advertiser handle, EU/EEA country and date range, and lists no response fields. This is a tolerant guess and stays unverified until a real response is recorded.",
+  "results": [
+    {
+      "id": "1800000000000000001",
+      "advertiser": "contoso_example",
+      "text": "Q3 pricing is live. Switch before the 31st and keep your rate for 2 years.",
+      "url": "https://x.com/contoso_example/status/1800000000000000001",
+      "media": [{ "type": "photo", "url": "https://cdn.example/x1.jpg" }],
+      "start_date": "2026-08-20",
+      "end_date": "2026-09-30"
+    },
+    {
+      "id": "1800000000000000002",
+      "advertiser": "contoso_example",
+      "full_text": "See the new dashboard in action.",
+      "start_date": "2026-09-25"
+    }
+  ]
+}

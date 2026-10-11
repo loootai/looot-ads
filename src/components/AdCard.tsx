@@ -1,8 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import { shortDay } from "@/lib/clock";
-import type { Ad } from "@/lib/types";
-
-const PLATFORM_LABEL = { meta: "Meta", google: "Google", linkedin: "LinkedIn", tiktok: "TikTok" } as const;
+import { PLATFORM_LABEL, type Ad } from "@/lib/types";
 
 function host(url: string): string {
   try {
@@ -31,6 +29,7 @@ export function AdCard({ ad, competitor }: { ad: Ad; competitor: string }) {
           <span className="font-medium text-ink">{competitor}</span>
           <span className="num">{ad.format}</span>
         </div>
+        {ad.advertiser && ad.advertiser !== competitor && <p className="text-12 text-mute">by {ad.advertiser}</p>}
         {ad.headline && <h3 className="text-14 font-semibold leading-snug">{ad.headline}</h3>}
         {ad.body && <p className="line-clamp-4 text-13 text-mute">{ad.body}</p>}
         {ad.cta && <span className="w-fit rounded-control border border-line px-2 py-0.5 text-12">{ad.cta}</span>}

@@ -1,11 +1,26 @@
-export type Platform = "meta" | "google" | "linkedin" | "tiktok";
-export const PLATFORMS: Platform[] = ["meta", "google", "linkedin", "tiktok"];
+export type Platform = "meta" | "google" | "linkedin" | "tiktok" | "reddit" | "x" | "tiktoktop";
+export const PLATFORMS: Platform[] = ["meta", "google", "linkedin", "tiktok", "reddit", "x", "tiktoktop"];
+
+/** Names shown in the UI, the plan and the reports. */
+export const PLATFORM_LABEL: Record<Platform, string> = {
+  meta: "Meta",
+  google: "Google",
+  linkedin: "LinkedIn",
+  tiktok: "TikTok",
+  reddit: "Reddit",
+  x: "X",
+  tiktoktop: "TikTok top ads",
+};
 
 export interface Competitor {
-  /** Stable slug, made from the domain or the name. */
+  /** Stable slug, made from the domain or the name. A keyword gets the prefix "kw-". */
   id: string;
   name: string;
   domain?: string;
+  /** X handle without the @. Needed only for the X ads repository. */
+  handle?: string;
+  /** true when this row is a topic to discover ads for, not a named brand. `name` holds the keyword. */
+  keyword?: boolean;
 }
 
 export type AdFormat = "image" | "video" | "carousel" | "text" | "unknown";
@@ -16,6 +31,8 @@ export interface Ad {
   id: string;
   competitorId: string;
   platform: Platform;
+  /** Who runs the ad, when the library says. The only brand name a keyword search gives. */
+  advertiser?: string;
   headline?: string;
   body?: string;
   cta?: string;
