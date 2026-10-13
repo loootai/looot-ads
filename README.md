@@ -1,4 +1,6 @@
-<p align="center"><img src="assets/hero.png" alt="looot-ads" width="100%"></p>
+![looot-ads: the competitor ad board after a live run on 2026-10-13, 466 ads for Clay, Apollo.io, ZoomInfo, Apify and Bright Data, with the data enrichment api keyword](docs/media/banner.png)
+
+<sub>Logos and names belong to their owners. Public data from a live run on 2026-10-13. No affiliation.</sub>
 
 # looot-ads
 
@@ -15,6 +17,61 @@ Or give it a keyword instead of a name. Discovery mode searches Meta, LinkedIn, 
 > **Spend limits.** v0.1.6 adds a daily and monthly budget with reserve-then-settle and stored results, so repeating a request is not charged twice and parallel requests cannot pass the budget together. See [Spending](#spending).
 
 > **Security notice.** Versions 0.1.3 and older had no admin sign-in. Anyone who could reach a deployed web UI could read the saved pull, and could start paid looot runs on your token with a spend cap they chose. If you run v0.1.3 or older on a reachable host, upgrade to v0.1.4 and set `ADS_ADMIN_PASSWORD`. See [Securing a deployment](#securing-a-deployment).
+
+<table>
+<tr>
+<td width="50%"><img src="docs/media/card-board.png" alt="Five competitors on one board: ad count, top angle and top offer for Clay, Apollo, ZoomInfo, Apify, Bright Data and the keyword"></td>
+<td width="50%"><img src="docs/media/card-angles.png" alt="What one competitor says: Bright Data's angles, offers and calls to action, read from 76 ads"></td>
+</tr>
+<tr>
+<td><img src="docs/media/card-keyword.png" alt="Find advertisers you never named: the keyword data enrichment api finds Hunter, PrimeTracers and EasyInsights ads on Meta"></td>
+<td><img src="docs/media/card-mismatch.png" alt="Name search can match the wrong company: Clay on Meta returned 30 ads, all from Clayton Hotels"></td>
+</tr>
+<tr>
+<td><img src="docs/media/card-quote.png" alt="See the price before you run: five competitors on four platforms, $0.0482 at list price"></td>
+<td><img src="docs/media/card-costs.png" alt="A budget that holds: $0.05 used of the $10.00 daily budget after the live run"></td>
+</tr>
+</table>
+
+The banner, all six cards and the walkthrough are the real web UI showing a live paid run on 2026-10-13 (see [Live run](#live-run-looot-watching-its-own-market)). They say "Live run". Ads from a few advertisers that show a person's face or name were left out of the board data used for the pictures, not out of the run. The three older screenshots further down are still the invented demo data.
+
+![A 31-second walkthrough of the web UI: the board, one competitor, keyword discovery, a wrong-company match, the price table and the costs page](docs/media/demo.gif)
+
+The same walkthrough as MP4: [docs/media/demo.mp4](docs/media/demo.mp4).
+
+## Live run: looot watching its own market
+
+On 2026-10-13 the CLI pulled the ad libraries for looot's neighbours: Clay, Apollo.io, ZoomInfo, Apify and Bright Data by domain, plus the keyword `data enrichment api`.
+
+```bash
+npm run ads -- --file competitors.csv --keywords "data enrichment api" --dry-run   # 25 calls, $0.05884
+LOOOT_TOKEN=... npm run ads -- --file competitors.csv --keywords "data enrichment api" --max-spend 0.12 --out out
+```
+
+| | Result |
+|---|---|
+| Calls | 25 (24 paid, 1 failed and free) |
+| Charged | $0.05484, the sum of the 24 paid runs. The budget file and `ads.json` agree. I checked three run ids with `looot runs get` |
+| Ads returned | 471 |
+| Quote | $0.05884 at live catalog prices, so the failed Reddit call saved $0.004 |
+
+What the run showed, good and bad.
+
+- Meta, Google, LinkedIn, TikTok and TikTok top ads all returned ads, and the parsers in `src/lib/normalize.ts` read them: headline, body, call to action, format, first seen, running days and the ad library link all filled in. This is the first run on real responses.
+- Google by domain is the most reliable source. Bright Data's own ads, ZoomInfo's (listed under its old name, DiscoverOrg, LLC) and Apify's came back. 40 ads per call.
+- Name search on Meta can match the wrong company. "Clay" returned 30 ads, all from Clayton Hotels. Apollo's Meta call returned 29 ads from an advertiser called "Apollo" that I did not check. Meta found nothing for ZoomInfo, Apify or Bright Data. LinkedIn matched Clay to Clayton Corporation and a few other Clay names.
+- Apollo's Google call returned 34 ads from ZenLeads Inc., a third party advertising on the Apollo domain, and Apify's returned 16 from a UK reseller. The board shows the advertiser on each card, so you can see it.
+- TikTok returned 12 ads each for Apollo and Bright Data, 1 for ZoomInfo and none for Clay and Apify. Almost all have no thumbnail and no landing page, and are marked inactive.
+- The keyword search worked. Meta found Hunter, PrimeTracers, EasyInsights and Akta ads, LinkedIn 24, TikTok 12 and TikTok top ads 20 (19 with no advertiser name).
+- The Reddit ad library call failed with a 503 from the provider and cost nothing. The board shows it as a failed source.
+- A name written as `Apollo.io` shows as `Apollo` on the board.
+- LinkedIn and TikTok ads return no landing page.
+
+The thumbnails come from the ad libraries' own links, which expire. Run the pull again to refresh them.
+
+To see it in your own browser: run `npm run build`, set `ADS_ADMIN_PASSWORD`, point `LOOOT_ADS_DATA_DIR` at a folder holding the `ads.json` as `latest.json`, and `npm run start`.
+
+Demo data, invented brands:
 
 ![Board, light theme](docs/screenshots/board-light.png)
 
@@ -260,7 +317,7 @@ How to file an issue. Open an issue at https://github.com/loootai/looot-ads/issu
 
 ## Status
 
-No paid looot run was made while building this. The code that turns a provider response into ads is built from the endpoint descriptions in the catalog, from the field names those providers document, and from fixtures written to match (`src/lib/fixtures/`, all invented). The catalog lists no response fields for the endpoints added in v0.1.5, so those parsers (Meta keyword search, Google Ads Transparency, Reddit, X and TikTok top ads) are unverified, tolerant guesses, the same as the original four. It reads many alias names for each field and skips what it cannot read, but the first real pull may show a field it misses. If a provider returns ads that look empty, open an issue with the raw response (see Troubleshooting), and add the alias in `src/lib/normalize.ts`. The unit tests mock HTTP.
+The first paid run was on 2026-10-13 (see [Live run](#live-run-looot-watching-its-own-market)). Meta (name and keyword), Google, LinkedIn, TikTok and TikTok top ads parsed correctly on real responses. Reddit failed at the provider and X was not run, so those two parsers are still unverified, tolerant guesses built from the endpoint descriptions and fixtures (`src/lib/fixtures/`, all invented). It reads many alias names for each field and skips what it cannot read, but the first real pull may show a field it misses. If a provider returns ads that look empty, open an issue with the raw response (see Troubleshooting), and add the alias in `src/lib/normalize.ts`. The unit tests mock HTTP.
 
 ## Develop
 
