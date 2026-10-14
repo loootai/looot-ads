@@ -2,6 +2,10 @@
 
 Built from the GitHub release notes. Each version links to its release page.
 
+## Unreleased
+
+- Fix: the sign-in form could not be used in a browser. Chrome sends `Origin: null` for a same-origin form post under `Referrer-Policy: no-referrer`, and the same-origin check refused it with 403. The check now falls back to `Sec-Fetch-Site` for `null`.
+
 ## 0.1.6 (2026-10-11)
 
 Spend limits, version 2. Before this, a pull was limited only by the cap per pull, an in-memory rate limit and the token balance. Nothing limited spend across pulls, two requests started together could both pass the cap, and an X ads call changed its key every day because its date window ended on today.
